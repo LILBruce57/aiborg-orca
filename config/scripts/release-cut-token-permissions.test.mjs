@@ -16,7 +16,7 @@ const EXPECTED_MATRIX = {
   '.github/workflows/e2e.yml#ssh-localhost': { contents: 'read' },
   '.github/workflows/e2e.yml#ssh-docker-watcher-isolation': { contents: 'read' },
   '.github/workflows/homebrew-bump.yml#bump-cask': { contents: 'read' },
-  '.github/workflows/release-mac-build.yml#build-mac': { contents: 'write' },
+  '.github/workflows/release-mac-build.yml#build-mac': { actions: 'read', contents: 'write' },
   [`${RELEASE_WORKFLOW}#build`]: { actions: 'read', contents: 'write' },
   [`${RELEASE_WORKFLOW}#build-mac`]: { actions: 'write', contents: 'read' },
   [`${RELEASE_WORKFLOW}#create-release`]: { contents: 'write' },
@@ -34,6 +34,9 @@ const EXPECTED_MATRIX = {
   [`${RELEASE_WORKFLOW}#post-release-e2e`]: { actions: 'write' },
   [`${RELEASE_WORKFLOW}#publish-release`]: { contents: 'write' },
   [`${RELEASE_WORKFLOW}#release-preflight`]: { contents: 'read' },
+  [`${RELEASE_WORKFLOW}#relay-windows-process-tree`]: { contents: 'read' },
+  [`${RELEASE_WORKFLOW}#relay-windows-process-tree -> .github/workflows/relay-windows-process-tree.yml#build`]:
+    { contents: 'read' },
   [`${RELEASE_WORKFLOW}#skill-sharing-linux-floor-release-gate`]: { contents: 'read' },
   [`${RELEASE_WORKFLOW}#skill-sharing-release-gate`]: { contents: 'read' },
   [`${RELEASE_WORKFLOW}#terminal-rendering-golden`]: { contents: 'read' },
