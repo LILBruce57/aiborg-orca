@@ -214,12 +214,26 @@ export async function writeStringsViaSftp(
   }
 }
 
+type UploadDirectoryOptions = { exclusive?: boolean; signal?: AbortSignal }
+
 export async function uploadDirectory(
   sftp: SFTPWrapper,
   localDir: string,
   remoteDir: string,
-  rootRealPath = localDir,
-  options?: { exclusive?: boolean; signal?: AbortSignal }
+  root = localDir,
+  options?: UploadDirectoryOptions
+): Promise<void> {
+  // Why resolve the root: entries are compared by realpath, so a root under a symlink
+  // (macOS /var -> /private/var) would reject its own children as escapes.
+  await uploadDirectoryWithin(sftp, localDir, remoteDir, await realpath(root), options)
+}
+
+async function uploadDirectoryWithin(
+  sftp: SFTPWrapper,
+  localDir: string,
+  remoteDir: string,
+  rootRealPath: string,
+  options?: UploadDirectoryOptions
 ): Promise<void> {
   options?.signal?.throwIfAborted()
   await assertLocalUploadPathInsideRoot(rootRealPath, localDir)
@@ -241,7 +255,7 @@ export async function uploadDirectory(
 
     if (statResult.isDirectory()) {
       await mkdirSftp(sftp, remotePath, { allowExisting: !options?.exclusive })
-      await uploadDirectory(sftp, localPath, remotePath, rootRealPath, options)
+      await uploadDirectoryWithin(sftp, localPath, remotePath, rootRealPath, options)
     } else {
       await uploadFile(sftp, localPath, remotePath, options)
     }
