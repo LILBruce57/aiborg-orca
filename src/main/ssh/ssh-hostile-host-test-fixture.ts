@@ -1,20 +1,55 @@
-/** Builds and runs one hostile-host cell as a Docker sshd target for the relay deploy. */
+/** Starts one hostile-host cell as an SSH target for the relay deploy: a Docker sshd or a loopback one. */
 import { randomUUID } from 'node:crypto'
 import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { runProcess } from '../../shared/child-process/run-process'
 import type { SshTarget } from '../../shared/ssh-types'
-import { FORBIDDEN_TOOL_LOG, FORBIDDEN_TOOLS, type HostileHostCell } from './ssh-hostile-host-cells'
+import {
+  FORBIDDEN_TOOL_LOG,
+  FORBIDDEN_TOOLS,
+  forbiddenToolShimScript,
+  forbiddenToolsFor,
+  isLocalSshdCell,
+  type DockerHostileHostCell,
+  type HostileHostCell
+} from './ssh-hostile-host-cells'
+import {
+  parseSshSidePathProbe,
+  sshSidePathLeaks,
+  sshSidePathProbeCommand,
+  startLocalSshdTarget,
+  stopLocalSshdTarget,
+  type LocalSshdHostileHostTarget
+} from './ssh-hostile-host-local-sshd'
 
-export type HostileHostTarget = {
-  cell: HostileHostCell
+export type DockerHostileHostTarget = {
+  kind: 'docker'
+  cell: DockerHostileHostCell
+  username: 'root'
+  forbiddenToolLog: string
   containerName: string
   networkName: string | null
   host: string
   port: number
   identityFile: string
   tempDir: string
+}
+
+export type HostileHostTarget = DockerHostileHostTarget | LocalSshdHostileHostTarget
+
+/** The OS the observer's commands run on; `stat` flags differ between GNU and BSD. */
+export function hostileHostOs(target: HostileHostTarget): 'linux' | 'darwin' {
+  return target.kind === 'docker'
+    ? 'linux'
+    : target.cell.runsOn.platform === 'darwin'
+      ? 'darwin'
+      : 'linux'
+}
+
+/** A file's inode and mtime, so a reused runtime is proven untouched. */
+export function fileIdentityCommand(os: 'linux' | 'darwin', path: string): string {
+  return os === 'darwin' ? `stat -f '%i:%m' '${path}'` : `stat -c '%i:%Y' '${path}'`
 }
 
 async function run(program: string, args: readonly string[], timeoutMs = 60_000): Promise<string> {
@@ -26,13 +61,6 @@ async function run(program: string, args: readonly string[], timeoutMs = 60_000)
   }
   return result.stdout.trim()
 }
-
-const FORBIDDEN_TOOL_SHIM = [
-  '#!/bin/sh',
-  `printf '%s %s\\n' "\${0##*/}" "$*" >> ${FORBIDDEN_TOOL_LOG}`,
-  'exit 127',
-  ''
-].join('\n')
 
 // Why an entrypoint: a noexec tmpfs home starts empty, so the key and modes are written at start.
 const ENTRYPOINT = [
@@ -47,7 +75,7 @@ const ENTRYPOINT = [
   ''
 ].join('\n')
 
-export function hostileHostDockerfile(cell: HostileHostCell): string {
+export function hostileHostDockerfile(cell: DockerHostileHostCell): string {
   const shims = FORBIDDEN_TOOLS.map((tool) => `ln -sf orca-forbidden-tool /usr/local/bin/${tool}`)
   return [
     ...cell.dockerfile,
@@ -66,9 +94,12 @@ export function hostileHostDockerfile(cell: HostileHostCell): string {
   ].join('\n')
 }
 
-async function buildImage(cell: HostileHostCell, contextDir: string): Promise<string> {
+async function buildImage(cell: DockerHostileHostCell, contextDir: string): Promise<string> {
   await writeFile(join(contextDir, 'Dockerfile'), hostileHostDockerfile(cell))
-  await writeFile(join(contextDir, 'forbidden-tool.sh'), FORBIDDEN_TOOL_SHIM)
+  await writeFile(
+    join(contextDir, 'forbidden-tool.sh'),
+    forbiddenToolShimScript(FORBIDDEN_TOOL_LOG)
+  )
   await writeFile(join(contextDir, 'entrypoint.sh'), ENTRYPOINT)
   const image = `orca-ssh-hostile-host:${cell.id}`
   await run('docker', ['build', '-q', '-t', image, contextDir], 900_000)
@@ -76,6 +107,21 @@ async function buildImage(cell: HostileHostCell, contextDir: string): Promise<st
 }
 
 export async function startHostileHostTarget(cell: HostileHostCell): Promise<HostileHostTarget> {
+  if (isLocalSshdCell(cell)) {
+    const started = await startLocalSshdTarget(cell)
+    try {
+      await waitForSshd(started)
+      await assertSshSidePathHidesToolchain(started)
+      return started
+    } catch (error) {
+      await stopLocalSshdTarget(started)
+      throw error
+    }
+  }
+  return startDockerTarget(cell)
+}
+
+async function startDockerTarget(cell: DockerHostileHostCell): Promise<DockerHostileHostTarget> {
   const tempDir = await mkdtemp(join(tmpdir(), `orca-hostile-${cell.id}-`))
   const identityFile = join(tempDir, 'id_ed25519')
   const containerName = `orca-hostile-${cell.id}-${randomUUID().slice(0, 8)}`
@@ -114,8 +160,11 @@ export async function startHostileHostTarget(cell: HostileHostCell): Promise<Hos
           host: '127.0.0.1',
           port: Number((await run('docker', ['port', containerName, '22/tcp'])).split(':').at(-1))
         }
-    const started: HostileHostTarget = {
+    const started: DockerHostileHostTarget = {
+      kind: 'docker',
       cell,
+      username: 'root',
+      forbiddenToolLog: FORBIDDEN_TOOL_LOG,
       containerName,
       networkName,
       identityFile,
@@ -131,30 +180,34 @@ export async function startHostileHostTarget(cell: HostileHostCell): Promise<Hos
   }
 }
 
+function sshArgs(target: HostileHostTarget, command: string): string[] {
+  return [
+    '-i',
+    target.identityFile,
+    '-p',
+    String(target.port),
+    '-o',
+    'StrictHostKeyChecking=no',
+    '-o',
+    'UserKnownHostsFile=/dev/null',
+    '-o',
+    'BatchMode=yes',
+    '-o',
+    'IdentitiesOnly=yes',
+    '-o',
+    'ConnectTimeout=5',
+    `${target.username}@${target.host}`,
+    command
+  ]
+}
+
 async function waitForSshd(target: HostileHostTarget): Promise<void> {
   const deadline = Date.now() + 60_000
   let last = ''
   while (Date.now() < deadline) {
     const result = await runProcess({
       program: 'ssh',
-      args: [
-        '-i',
-        target.identityFile,
-        '-p',
-        String(target.port),
-        '-o',
-        'StrictHostKeyChecking=no',
-        '-o',
-        'UserKnownHostsFile=/dev/null',
-        '-o',
-        'BatchMode=yes',
-        '-o',
-        'IdentitiesOnly=yes',
-        '-o',
-        'ConnectTimeout=5',
-        `root@${target.host}`,
-        'true'
-      ],
+      args: sshArgs(target, 'true'),
       timeoutMs: 15_000
     })
     if (result.code === 0) {
@@ -163,8 +216,25 @@ async function waitForSshd(target: HostileHostTarget): Promise<void> {
     last = result.stderr || result.stdout
     await new Promise((resolve) => setTimeout(resolve, 1_000))
   }
-  const logs = await runProcess({ program: 'docker', args: ['logs', target.containerName] })
-  throw new Error(`sshd in ${target.cell.id} never accepted the key: ${last}\n${logs.stderr}`)
+  const logs =
+    target.kind === 'docker'
+      ? (await runProcess({ program: 'docker', args: ['logs', target.containerName] })).stderr
+      : target.sshdLog()
+  throw new Error(`sshd in ${target.cell.id} never accepted the key: ${last}\n${logs}`)
+}
+
+/** The deploy's exec channels must find only the shims, and no host Node at all. */
+async function assertSshSidePathHidesToolchain(target: LocalSshdHostileHostTarget): Promise<void> {
+  const tools = [...forbiddenToolsFor(target.cell), 'node']
+  const result = await runProcess({
+    program: 'ssh',
+    args: sshArgs(target, sshSidePathProbeCommand(tools)),
+    timeoutMs: 30_000
+  })
+  const leaks = sshSidePathLeaks(parseSshSidePathProbe(result.stdout), join(target.tempDir, 'bin'))
+  if (result.code !== 0 || leaks.length > 0) {
+    throw new Error(`${target.cell.id} SSH PATH leaks: ${leaks.join('; ') || result.stderr}`)
+  }
 }
 
 async function removeContainer(containerName: string, networkName: string | null): Promise<void> {
@@ -178,22 +248,30 @@ export async function stopHostileHostTarget(target: HostileHostTarget | null): P
   if (!target) {
     return
   }
+  if (target.kind === 'local-sshd') {
+    await stopLocalSshdTarget(target)
+    return
+  }
   await removeContainer(target.containerName, target.networkName)
   await rm(target.tempDir, { recursive: true, force: true })
 }
 
-/** Runs a POSIX sh command inside the container, outside SSH, as the test's own observer. */
+function observerCommand(target: HostileHostTarget, command: string): string[] {
+  return target.kind === 'docker'
+    ? ['docker', 'exec', target.containerName, 'sh', '-c', command]
+    : ['/bin/sh', '-c', command]
+}
+
+/** Runs a POSIX sh command on the host, outside SSH, as the test's own observer. */
 export function hostExec(target: HostileHostTarget, command: string): Promise<string> {
-  return run('docker', ['exec', target.containerName, 'sh', '-c', command], 120_000)
+  const [program, ...args] = observerCommand(target, command)
+  return run(program, args, 120_000)
 }
 
 /** Exit status only: for probes whose failure is the expected answer. */
 export async function hostExecStatus(target: HostileHostTarget, command: string): Promise<number> {
-  const result = await runProcess({
-    program: 'docker',
-    args: ['exec', target.containerName, 'sh', '-c', command],
-    timeoutMs: 60_000
-  })
+  const [program, ...args] = observerCommand(target, command)
+  const result = await runProcess({ program, args, timeoutMs: 60_000 })
   return result.code ?? -1
 }
 
@@ -204,7 +282,7 @@ export function hostileHostSshTarget(target: HostileHostTarget): SshTarget {
     source: 'manual',
     host: target.host,
     port: target.port,
-    username: 'root',
+    username: target.username,
     identityFile: target.identityFile,
     identitiesOnly: true,
     remoteRuntime: 'pinned-node'

@@ -1,10 +1,13 @@
 // Design D5/D6 hostile-host matrix: the real client-side relay deploy against container SSH
-// targets, asserting which rung of the runtime ladder each host lands on.
+// targets, and against a macOS runner's own loopback sshd, asserting which rung of the runtime
+// ladder each host lands on.
 //
 // Run: ORCA_RUN_SSH_HOSTILE_HOSTS=1 pnpm test src/main/ssh/ssh-relay-hostile-hosts.docker.test.ts
-// Needs Linux Docker (the no-egress cell dials an internal bridge directly), `pnpm build:relay`,
-// and an orcad template with both x64 Linux slots:
+// Needs `pnpm build:relay` and an orcad template holding each selected cell's slot. Docker cells
+// need Linux Docker (the no-egress cell dials an internal bridge directly) and
 //   node config/scripts/build-orcad-template.mjs --targets linux-x64-glibc,linux-x64-musl
+// macOS cells need /usr/sbin/sshd and this runner's slot (`pnpm build:orcad-prebuilds`, then
+// `--targets darwin-arm64` or `darwin-x64`). Only cells this machine can host run.
 // ORCA_SSH_HOSTILE_HOST_CELLS=id,id narrows the run. .github/workflows/ssh-hostile-hosts.yml runs it.
 import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -16,13 +19,12 @@ vi.mock('electron', () => ({ app: { getAppPath: () => process.cwd() } }))
 
 import { setAppEnvironment } from '../../shared/app-environment'
 import type { ServerTarget } from '../../shared/node-runtime-pin'
-import { NODE_RUNTIME_ASSETS } from '../../shared/node-runtime-pin'
+import { NODE_RUNTIME_ASSETS, NODE_RUNTIME_PIN } from '../../shared/node-runtime-pin'
 import type { SshRemoteRuntimeRung, SshTarget } from '../../shared/ssh-types'
 import { gcRemoteNodeRuntimeStore } from './remote-node-runtime-store-gc'
 import { SshChannelMultiplexer } from './ssh-channel-multiplexer'
 import { SshConnection } from './ssh-connection'
 import {
-  FORBIDDEN_TOOL_LOG,
   HOSTILE_HOST_CELLS,
   hostileHostCellViolations,
   parseForbiddenToolLog,
@@ -31,8 +33,10 @@ import {
   type RungRefusal
 } from './ssh-hostile-host-cells'
 import {
+  fileIdentityCommand,
   hostExec,
   hostExecStatus,
+  hostileHostOs,
   hostileHostSshTarget,
   startHostileHostTarget,
   stopHostileHostTarget,
@@ -98,7 +102,7 @@ async function assertCell(
   target: HostileHostTarget,
   attempt: DeployAttempt
 ): Promise<void> {
-  const log = await hostExec(target, `cat ${FORBIDDEN_TOOL_LOG} 2>/dev/null || true`)
+  const log = await hostExec(target, `cat '${target.forbiddenToolLog}' 2>/dev/null || true`)
   const { error } = attempt
   const violations = hostileHostCellViolations(cell, {
     settledRung: attempt.settledRung,
@@ -202,6 +206,23 @@ async function assertGcKeepsInUseRuntime(
   expect(await hostExecStatus(target, `test -e '${store}/${older}'`)).not.toBe(0)
 }
 
+/**
+ * Gatekeeper only evaluates files carrying com.apple.quarantine, which SFTP writes never get; the
+ * runtime must run as uploaded, with no `xattr -d` (the SSH side's xattr is a forbidden shim).
+ */
+async function assertRunsWithoutQuarantine(
+  target: HostileHostTarget,
+  nodePath: string
+): Promise<void> {
+  const runtimeDir = posix.dirname(posix.dirname(nodePath))
+  expect(await hostExec(target, `xattr -r -l '${runtimeDir}'`)).not.toContain(
+    'com.apple.quarantine'
+  )
+  expect(await hostExec(target, `'${nodePath}' -p process.version`)).toBe(
+    `v${NODE_RUNTIME_PIN.version}`
+  )
+}
+
 async function exerciseLaunchedCell(
   cell: HostileHostCell,
   target: HostileHostTarget,
@@ -222,7 +243,11 @@ async function exerciseLaunchedCell(
   const clientInstanceId = randomUUID()
   await assertTerminalEchoes(first.deployed, clientInstanceId)
   await assertGcKeepsInUseRuntime(firstConn, target, first.deployed, nodePath)
-  const before = await hostExec(target, `stat -c '%i:%Y' '${nodePath}'`)
+  if (hostileHostOs(target) === 'darwin') {
+    await assertRunsWithoutQuarantine(target, nodePath)
+  }
+  const identity = fileIdentityCommand(hostileHostOs(target), nodePath)
+  const before = await hostExec(target, identity)
   await firstConn.disconnect()
 
   const secondConn = await connect(sshTarget)
@@ -230,7 +255,7 @@ async function exerciseLaunchedCell(
     const second = await deployOnce(secondConn)
     await assertCell(cell, target, second)
     expect(second.run?.runtimeTransfer).toBe('cached')
-    expect(await hostExec(target, `stat -c '%i:%Y' '${nodePath}'`)).toBe(before)
+    expect(await hostExec(target, identity)).toBe(before)
     if (!second.deployed) {
       throw new Error(`${cell.id} did not relaunch on the second connect`)
     }
@@ -271,7 +296,7 @@ describe('SSH relay hostile-host matrix', () => {
         let conn: SshConnection | null = null
         try {
           target = await startHostileHostTarget(cell)
-          if (cell.noEgress) {
+          if (target.kind === 'docker' && target.cell.noEgress) {
             expect(
               await hostExecStatus(target, "timeout 5 bash -c 'exec 3<>/dev/tcp/1.1.1.1/443'")
             ).not.toBe(0)
