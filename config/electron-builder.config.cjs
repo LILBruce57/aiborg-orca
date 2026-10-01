@@ -808,3 +808,8 @@ function findInstalledMacSigningIdentity(keychainFile) {
   } catch {}
   return null
 }
+
+// AI-Borg (H1): side-by-side packaging identity. See docs/aiborg/PATCHES.md.
+module.exports = require('./aiborg/builder-overrides.cjs').applyAiborgBuilderOverrides(
+  module.exports
+)

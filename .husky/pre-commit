@@ -1,2 +1,4 @@
 #!/usr/bin/env sh
+# AI-Borg: public repo, refuse client names from the private profile directory.
+node config/aiborg/check-no-client-data.mjs --staged
 pnpm exec lint-staged

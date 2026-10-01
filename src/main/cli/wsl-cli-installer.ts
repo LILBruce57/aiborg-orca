@@ -16,6 +16,7 @@ import {
 } from './wsl-cli-scripts'
 import { buildWslCliInstallCommand } from './wsl-cli-registration-command'
 import { buildWslCliStatus, readWslCliCommandFile, resolveReadyWslCliState } from './wsl-cli-status'
+import { assertAiborgGlobalCliRegistrationAllowed } from '../aiborg/upstream-service-policy'
 
 const MANAGED_MARKER = getWslLauncherMarker()
 const BRIDGE_MANAGED_MARKER = getWslBridgeMarker()
@@ -200,6 +201,8 @@ export class WslCliInstaller {
   }
 
   async install(precomputedStatus?: CliInstallStatus): Promise<CliInstallStatus> {
+    // AI-Borg (H15): the WSL `orca` launcher may belong to a side-by-side stock Orca.
+    assertAiborgGlobalCliRegistrationAllowed()
     // Why: repair passes its fresh probe; re-probing here would double every
     // WSL round trip on the startup reconciliation path.
     const status = precomputedStatus ?? (await this.getStatus())
@@ -224,6 +227,8 @@ export class WslCliInstaller {
   }
 
   async remove(): Promise<CliInstallStatus> {
+    // AI-Borg (H15b): the WSL `orca` launcher may belong to a side-by-side stock Orca.
+    assertAiborgGlobalCliRegistrationAllowed()
     const status = await this.getStatus()
     if (!status.supported || !status.commandPath) {
       return status

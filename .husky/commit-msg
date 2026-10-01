@@ -1,0 +1,3 @@
+#!/usr/bin/env sh
+# AI-Borg: public repo, refuse client names in commit messages.
+node config/aiborg/check-no-client-data.mjs --message "$1"

@@ -16,6 +16,7 @@ import { PushDispatcher } from './push-dispatcher'
 import { PushGatewayClient } from './push-gateway-client'
 import { PushRegisterThrottle } from './push-register-throttle'
 import type { PushUnregisterOutbox } from './push-unregister-outbox'
+import { isAiborgPushRelayDisabled } from '../../aiborg/upstream-service-policy'
 
 const OUTBOX_RETRY_BASE_MS = 30_000
 const OUTBOX_RETRY_MAX_MS = 10 * 60_000
@@ -73,6 +74,10 @@ export class DesktopPushService {
 
   /** Returns null when the mobile runtime never came up, so there is nothing to push for. */
   static create(options: DesktopPushServiceOptions): DesktopPushService | null {
+    // AI-Borg (H21): no push.onorca.dev relay; covers the desktop and orcad call sites.
+    if (isAiborgPushRelayDisabled()) {
+      return null
+    }
     const keypair = options.runtimeRpc.getE2EEKeypair()
     const registry = options.runtimeRpc.getDeviceRegistry()
     if (!keypair || !registry) {

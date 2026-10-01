@@ -34,7 +34,9 @@ export default defineConfig({
       resolve('config/scripts/happy-dom-offscreen-canvas.ts'),
       resolve('config/scripts/happy-dom-mutation-observer-retention.ts'),
       resolve('config/scripts/vitest-host-ports-setup.ts'),
-      resolve('config/scripts/vitest-caller-identity-env-setup.ts')
+      resolve('config/scripts/vitest-caller-identity-env-setup.ts'),
+      // AI-Borg (H17): upstream suites run against upstream behaviour.
+      resolve('config/aiborg/vitest-upstream-behavior-setup.ts')
     ],
     include: UNIT_INCLUDE,
     ...(process.env.ORCA_BALANCE_UNIT_SHARDS === '1' ? { exclude: UNIT_EXCLUDE } : {}),

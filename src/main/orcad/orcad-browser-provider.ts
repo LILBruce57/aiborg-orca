@@ -13,6 +13,8 @@ import {
 } from './external-chromium-browser-process'
 import { resolveOrcadAgentBrowserBinary } from './orcad-agent-browser-binary'
 import { ElectronServeBrowserProcess } from './electron-serve-browser-process'
+import { isUpstreamBehaviorUnderTest } from '../aiborg/upstream-service-policy'
+import { aiborgInstalledElectronCandidates } from '../aiborg/orcad/aiborg-installed-electron-candidates'
 
 export type OrcadBrowserProvider = {
   kind: 'electron' | 'chromium'
@@ -62,6 +64,10 @@ export function installedElectronCandidates(
   homePath: string,
   environment: NodeJS.ProcessEnv
 ): string[] {
+  // AI-Borg (H22): launch AI-Borg's own install, never a side-by-side stock Orca.
+  if (!isUpstreamBehaviorUnderTest()) {
+    return aiborgInstalledElectronCandidates(platform, homePath, environment)
+  }
   const joinPath = platform === 'win32' ? win32.join : posix.join
   if (platform === 'darwin') {
     return [

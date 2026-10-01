@@ -23,6 +23,8 @@ import type { ProcessLivenessVerdict } from './daemon-incarnation-evidence-types
 import { parseDaemonPidFile } from './daemon-pid-file-parse'
 import { quarantineCorruptDaemonPidRecord } from './daemon-pid-record-quarantine'
 import { inspectProcessLiveness, mergeProcessLivenessVerdict } from './daemon-process-inspection'
+import { AIBORG_BRAND } from '../../shared/aiborg/brand'
+import { brandedOrUpstream } from '../aiborg/upstream-service-policy'
 
 /**
  * Relocate the terminal daemon's process image out of the app install dir into LOCAL userData so it
@@ -47,7 +49,8 @@ const HOST_SUBDIR = 'daemon-host'
 const MARKER_NAME = '.materialized.json'
 
 // LOCAL appData (not roaming) so OneDrive/roaming never syncs this ~260MB runtime. Shared with NSIS uninstall (config/nsis/orca-installer-hooks.nsh) — keep in sync.
-const LOCAL_HOST_ROOT_NAME = 'Orca'
+// AI-Borg (H5): own root so a side-by-side stock Orca keeps %LOCALAPPDATA%\Orca\daemon-host; the uninstall counterpart is config/aiborg/nsis/aiborg-installer-hooks.nsh.
+const LOCAL_HOST_ROOT_NAME = brandedOrUpstream(AIBORG_BRAND.daemonHostRootName, 'Orca')
 
 type MaterializeMarker = {
   version: string

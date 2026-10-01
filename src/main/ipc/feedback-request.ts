@@ -4,6 +4,7 @@ import type {
   FeedbackImageAttachment,
   FeedbackRequestFailure
 } from '../../shared/feedback-submit-contract'
+import { assertAiborgFeedbackAllowed } from '../aiborg/upstream-service-policy'
 
 // Why: the production Mac build loads the renderer from a file:// origin, so a
 // cross-origin POST from fetch() triggers a CORS preflight that the feedback
@@ -44,6 +45,8 @@ export async function postFeedback(
   timeoutMs = FEEDBACK_REQUEST_TIMEOUT_MS,
   readResponse?: (response: Response) => Promise<void>
 ): Promise<Response> {
+  // AI-Borg (H13): every feedback and crash post funnels through here; refuse before any I/O.
+  assertAiborgFeedbackAllowed()
   const controller = new AbortController()
   // Why: a silent endpoint must not leave feedback IPC pending forever.
   const timeout = setTimeout(() => controller.abort(), timeoutMs)

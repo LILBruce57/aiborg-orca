@@ -3,11 +3,13 @@ import { is } from '@electron-toolkit/utils'
 import type { UpdateCheckOptions } from '../../shared/update-status-types'
 import type { ReleaseChannel } from '../../shared/release-channel'
 import { UpdaterScheduling } from './updater-scheduling'
+import { isAiborgAutoUpdateDisabled } from '../aiborg/upstream-service-policy'
 
 /** Handles checks initiated from the desktop menu and modifier-key variants. */
 export abstract class UpdaterMenuChecks extends UpdaterScheduling {
   protected checkForUpdatesFromMenu(options?: UpdateCheckOptions): void {
-    if (!app.isPackaged || is.dev) {
+    // AI-Borg (H9): a manual check answers not-available without touching the network.
+    if (!app.isPackaged || is.dev || isAiborgAutoUpdateDisabled()) {
       this.sendStatus({ state: 'not-available', userInitiated: true })
       return
     }

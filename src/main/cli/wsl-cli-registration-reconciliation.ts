@@ -8,6 +8,7 @@ import {
 } from './wsl-cli-registration-registry'
 import { WslCliInstaller } from './wsl-cli-installer'
 import { runSerializedWslCliRegistrationOperation } from './wsl-cli-registration-operation'
+import { isAiborgGlobalCliRegistrationDisabled } from '../aiborg/upstream-service-policy'
 
 // Why: candidate distros can each boot a stopped WSL VM; a small cap staggers
 // those boots instead of spiking RAM/CPU for every distro at once at startup.
@@ -62,7 +63,8 @@ export async function reconcileManagedWslCliRegistrations(
   options: WslCliRegistrationReconciliationOptions
 ): Promise<WslCliRegistrationReconciliationResult[]> {
   const platform = options.platform ?? process.platform
-  if (platform !== 'win32' || !options.isPackaged) {
+  // AI-Borg (H16): startup repair would repoint a stock Orca's WSL launcher at AI-Borg.
+  if (platform !== 'win32' || !options.isPackaged || isAiborgGlobalCliRegistrationDisabled()) {
     return []
   }
 

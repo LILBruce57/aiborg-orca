@@ -1,4 +1,5 @@
 import { ghExecFileAsync, acquire, release } from '../../gh-utils'
+import { isAiborgUpstreamStarDisabled } from '../../../aiborg/upstream-service-policy'
 export const ORCA_REPO = 'stablyai/orca'
 
 /**
@@ -19,6 +20,10 @@ let inFlightStarCheck: Promise<boolean | null> | null = null
  * Returns true if starred, false if not, null if unable to determine (gh unavailable).
  */
 export function checkOrcaStarred(): Promise<boolean | null> {
+  // AI-Borg (H12a): unknown, so no gh call runs under a client's account.
+  if (isAiborgUpstreamStarDisabled()) {
+    return Promise.resolve(null)
+  }
   // Why: five independent callers (landing button, settings section, threshold
   // nag, agent-value moment, force-show) can ask at once and none of them knows
   // about the others. Without coalescing, each forks its own `gh`, and four
@@ -63,6 +68,10 @@ async function runOrcaStarredCheck(): Promise<boolean | null> {
  * Star the Orca repo for the authenticated user.
  */
 export async function starOrca(): Promise<boolean> {
+  // AI-Borg (H12): the star PUT can never run with a client gh account.
+  if (isAiborgUpstreamStarDisabled()) {
+    return false
+  }
   await acquire()
   try {
     await ghExecFileAsync(['api', '-X', 'PUT', `user/starred/${ORCA_REPO}`], {
