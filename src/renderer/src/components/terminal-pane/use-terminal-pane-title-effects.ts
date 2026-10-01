@@ -23,6 +23,7 @@ import { captureTerminalShutdownLayout } from './terminal-shutdown-layout-captur
 import { resolveLeafScrollbackBuffers } from './leaf-scrollback-resolution'
 import { shouldPreserveTerminalScrollbackBuffers } from '../../../../shared/workspace-session-terminal-buffers'
 import type { TerminalPaneCloseController } from './use-terminal-pane-close-actions'
+import { useClientProfilePaneBorder } from '../../aiborg/client-profile-pane-border'
 
 export function useTerminalPaneTitleEffects(controller: TerminalPaneCloseController): void {
   const {
@@ -87,6 +88,7 @@ export function useTerminalPaneTitleEffects(controller: TerminalPaneCloseControl
     applyTerminalPaneAttention()
     return subscribeTerminalPaneAttention(tabId, applyTerminalPaneAttention)
   }, [tabId, paneCount, applyTerminalPaneAttention])
+  useClientProfilePaneBorder(controller)
 
   useLayoutEffect(() => {
     const manager = managerRef.current

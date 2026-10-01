@@ -19,6 +19,7 @@ import type {
   PhysicalModifierToken
 } from '../../../shared/keybindings'
 import { shortcutPlatform } from './app-window-chrome'
+import { clientProfileSwitchCommandEntry } from '../aiborg/client-profile-switch-command'
 
 type AppStoreState = ReturnType<typeof useAppStore.getState>
 
@@ -147,6 +148,7 @@ export function createAppCommandHandlers(
       : false
 
   return new Map<KeybindingActionId, () => boolean>([
+    clientProfileSwitchCommandEntry(claim),
     [
       'worktree.history.back',
       () => {

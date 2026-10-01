@@ -16,6 +16,7 @@ const SETTINGS_NAV_TARGETS = [
   'general',
   'integrations',
   'accounts',
+  'aiborg-client-profiles',
   'browser',
   'git',
   'tasks',

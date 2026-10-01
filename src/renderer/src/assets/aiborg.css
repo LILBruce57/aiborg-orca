@@ -1,0 +1,88 @@
+/* AI-Borg client profile chrome. The only colours here come from profile data, which the
+   renderer writes as inline custom properties (never from theme packs). */
+
+:root,
+.dark {
+  --aiborg-profile: transparent;
+}
+
+/* Why: inset shadow, not a border, so the 36px titlebar keeps its traffic-light alignment
+   (see the .titlebar-left note in main.css). */
+html[data-aiborg-profile] .titlebar {
+  box-shadow: inset 0 2px 0 var(--aiborg-profile);
+}
+
+html[data-aiborg-profile] .titlebar-left {
+  box-shadow:
+    inset 0 2px 0 var(--aiborg-profile),
+    inset 0 -1px 0 var(--border);
+}
+
+/* Why: the profile chip takes the place of upstream's "Orca" titlebar label (H39), only where it
+   renders (the paired web client has no bridge and keeps the label); :root beats main.css. */
+:root .titlebar-left:has(.aiborg-profile-chip) .titlebar-app-name {
+  display: none;
+}
+
+.aiborg-profile-chip {
+  -webkit-app-region: no-drag;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 24px;
+  max-width: min(220px, 28vw);
+  margin-left: 2px;
+  margin-right: 4px;
+  padding: 0 6px;
+  border: none;
+  border-radius: 4px;
+  background: none;
+  color: var(--muted-foreground);
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 24px;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.aiborg-profile-chip:hover,
+.aiborg-profile-chip[data-state='open'] {
+  background: var(--accent);
+  color: var(--accent-foreground);
+}
+
+.titlebar-left:not(.titlebar-left-floating) .aiborg-profile-chip {
+  color: var(--worktree-sidebar-foreground);
+}
+
+.aiborg-profile-chip-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.aiborg-profile-dot {
+  flex: 0 0 auto;
+  width: 8px;
+  height: 8px;
+  border-radius: 9999px;
+  background: var(--aiborg-dot-color, transparent);
+  box-shadow: inset 0 0 0 1px var(--border);
+}
+
+.aiborg-profile-dot[data-personal] {
+  background: transparent;
+  box-shadow: inset 0 0 0 1px var(--muted-foreground);
+}
+
+/* Why: `.pane::before` and `.xterm-container::after` are taken (terminal.css); z-index 19 keeps
+   the border under the pane title overlay (20). */
+.pane[data-aiborg-profile]::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 19;
+  pointer-events: none;
+  border-radius: 2px;
+  box-shadow: inset 0 0 0 2px var(--aiborg-pane-color, transparent);
+}

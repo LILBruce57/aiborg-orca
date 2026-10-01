@@ -24,6 +24,7 @@ import {
   UserCog
 } from 'lucide-react'
 import type { SettingsNavigationBuildOptions } from './settings-navigation-build-options'
+import { buildClientProfilesSettingsNavSections } from '@/aiborg/client-profiles-settings-section'
 
 export function buildCapabilitySettingsSections({
   isLocalWindowsHost,
@@ -63,6 +64,7 @@ export function buildCapabilitySettingsSections({
       group: 'capabilities',
       badge: translate('auto.hooks.useSettingsNavigationMetadata.7c79d3b7bf', 'Optional')
     },
+    ...buildClientProfilesSettingsNavSections(),
     {
       id: 'orchestration',
       title: translate('auto.hooks.useSettingsNavigationMetadata.58a868e8e4', 'Orchestration'),
