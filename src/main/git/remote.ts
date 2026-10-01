@@ -16,6 +16,7 @@ import { gitExecFileAsync } from './runner'
 import { fetchForkRemoteWithStaleRefspecRepair } from './fork-remote-stale-branch-refspec'
 import { runWithGitReadCacheInvalidation } from './status'
 import { runWithGitWorktreeOperationLock } from '../../shared/git-worktree-operation-lock'
+import { assertClientProfilePushTarget } from '../aiborg/binding/client-profile-push-guards'
 
 export { gitPullRebaseFromBase } from './remote-rebase'
 
@@ -48,6 +49,10 @@ export async function gitPush(
       : await resolveConfiguredGitPushTarget((args) =>
           gitExecFileAsync(args, gitOptionsForWorktree(worktreePath, options))
         )
+    // AI-Borg (H50): refuse a target outside the worktree profile's orgs before git runs.
+    await assertClientProfilePushTarget(worktreePath, target?.remote, (args) =>
+      gitExecFileAsync(args, gitOptionsForWorktree(worktreePath, options))
+    )
     const args = [
       'push',
       ...(options.forceWithLease ? ['--force-with-lease'] : []),

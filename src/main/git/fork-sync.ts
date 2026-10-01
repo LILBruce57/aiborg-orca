@@ -7,6 +7,7 @@ import {
 import type { GitRuntimeOptions } from './git-runtime-options'
 import { gitOptionsForWorktree } from './git-runtime-options'
 import { gitExecFileAsync } from './runner'
+import { assertClientProfilePushTarget } from '../aiborg/binding/client-profile-push-guards'
 
 export async function gitSyncForkDefaultBranch(
   worktreePath: string,
@@ -19,6 +20,10 @@ export async function gitSyncForkDefaultBranch(
     ? AbortSignal.any([options.signal, AbortSignal.timeout(60_000)])
     : AbortSignal.timeout(60_000)
   try {
+    // AI-Borg (H51): fork sync pushes the upstream tip to origin.
+    await assertClientProfilePushTarget(worktreePath, 'origin', (args) =>
+      gitExecFileAsync(args, gitOptionsForWorktree(worktreePath, options))
+    )
     return await syncForkDefaultBranch(
       (args) =>
         gitExecFileAsync(args, {

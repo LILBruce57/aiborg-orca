@@ -7,6 +7,10 @@ import type {
   SpawnedSourceControlAgentProcess,
   SpawnSourceControlAgent
 } from './source-control-text-generation-types'
+import {
+  assertClientProfileAllowsWsl,
+  withClientProfileEnv
+} from '../aiborg/binding/client-profile-process-env'
 
 const WSL_LAUNCHER_ENV_KEYS = [
   'ComSpec',
@@ -37,8 +41,10 @@ function buildWslLauncherEnv(explicitEnv: NodeJS.ProcessEnv | undefined): NodeJS
 }
 
 export const spawnSourceControlAgent: SpawnSourceControlAgent = (input) => {
-  const spawnEnv = input.env ?? process.env
+  // AI-Borg (H25): the worktree's client profile env; WSL is refused for profile-bound repos.
+  const spawnEnv = withClientProfileEnv(input.env, { cwd: input.cwd, action: 'text-generation' })
   if (process.platform === 'win32' && input.wslDistro) {
+    assertClientProfileAllowsWsl(input.cwd, 'text-generation') // AI-Borg (H25)
     // Apply assignments in the guest after its login shell, not to the Windows launcher.
     const assignments = Object.entries(input.commandEnv ?? {}).map(
       ([key, value]) => `${key}=${value}`

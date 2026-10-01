@@ -14,6 +14,7 @@ import {
   materializeWorktreePushTargetRemoteSsh
 } from '../../worktree-remote'
 import type { FilesystemHandlerContext } from '../filesystem-handler-context'
+import { assertClientProfileSshPush } from '../../../aiborg/binding/client-profile-push-guards'
 
 export function registerGitRemoteBranchMutationHandlers(context: FilesystemHandlerContext): void {
   const { store } = context
@@ -52,6 +53,7 @@ export function registerGitRemoteBranchMutationHandlers(context: FilesystemHandl
               args.worktreeId
             )
           : undefined
+        await assertClientProfileSshPush(provider, args.worktreePath, materializedPushTarget) // AI-Borg (H52)
         return provider.pushBranch(args.worktreePath, publish, materializedPushTarget, {
           forceWithLease: args.forceWithLease === true
         })

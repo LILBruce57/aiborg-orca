@@ -15,6 +15,7 @@ import { resolveCommittedPtySize, type PtyGrid } from '../delivery/attached-pty-
 import { discardUnpersistedPtySpawn } from '../pane/spawn-registration'
 import { spawnCommitBindingOrigin } from '../../../persistence/loading-store/pty-binding-span'
 import type { PtyIpcSpawnState } from './spawn-state'
+import { commitClientProfilePtyBinding } from '../../../aiborg/binding/client-profile-pty-spawn'
 
 export async function persistPtyIpcSpawnCommit(ctx: PtyIpcSpawnState): Promise<PtyGrid> {
   const args = ctx.args
@@ -103,6 +104,7 @@ export function publishPtyIpcSpawnCommit(ctx: PtyIpcSpawnState, committedSize: P
     settings: ctx.deps.getSettings?.()
   })
   ptyOwnership.set(ctx.result.id, args.connectionId ?? null)
+  commitClientProfilePtyBinding(ctx, ctx.result.id) // AI-Borg (H22c)
   if (ctx.result.incarnationId) {
     ptyIncarnationById.set(ctx.result.id, ctx.result.incarnationId)
   }

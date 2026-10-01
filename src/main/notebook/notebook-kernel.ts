@@ -7,6 +7,7 @@ import {
   type KernelFrame,
   type KernelStartResult
 } from '../../shared/notebook-kernel-types'
+import { withClientProfileEnv } from '../aiborg/binding/client-profile-process-env'
 
 const STDERR_TAIL_CHARS = 4000
 const SHUTDOWN_GRACE_MS = 5000
@@ -78,6 +79,7 @@ export function startNotebookKernel({
     program: python,
     args: [bridgePath],
     cwd,
+    env: withClientProfileEnv(undefined, { cwd, action: 'notebook' }), // AI-Borg (H49)
     detached: process.platform !== 'win32'
   })
   let settle: (result: KernelStartResult) => void = () => {}

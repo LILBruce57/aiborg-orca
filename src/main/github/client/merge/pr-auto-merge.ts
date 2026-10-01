@@ -10,6 +10,7 @@ import { resolveGitHubRepoExecution, type GitHubApiRepository } from '../../gith
 import { githubPRStackExecutionScope, type GhExecOptions } from './../github-exec-scope'
 import { detectRepositoryMergeMetadata } from './../detect/repository-merge-metadata'
 import { getRestPRByNumber } from './../lookup/pr-number-lookup'
+import { assertGitHubWriteAllowed } from '../../../aiborg/git/assert-github-write-allowed'
 export const PR_AUTO_MERGE_IDENTITY_JSON_FIELDS = 'id,headRefOid,baseRefName'
 
 export const GITHUB_AUTO_MERGE_METHODS: Record<GitHubPRMergeMethod, 'MERGE' | 'SQUASH' | 'REBASE'> =
@@ -92,6 +93,12 @@ export async function enablePRAutoMerge(
   ghOptions: GhExecOptions,
   executionScope?: string
 ): Promise<{ ok: true } | { ok: false; error: string }> {
+  // AI-Borg (H54): an unknown owner is refused under a client profile.
+  assertGitHubWriteAllowed({
+    owner: ownerRepo?.owner ?? '',
+    operation: 'pr.merge',
+    repoPath: ghOptions.cwd
+  })
   if (ownerRepo) {
     try {
       const restData = await getRestPRByNumber(ownerRepo, prNumber, ghOptions)

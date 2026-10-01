@@ -27,6 +27,7 @@ import { nonInteractiveGitEnv, untranslatedGitOutputEnv } from './git-process-en
 import { gitSpawn } from './git-spawn'
 import { acquireGitAdmission } from './git-subprocess-admission'
 import { GitCommandTimeoutError, gitCommandTimeoutMs } from './git-command-timeout'
+import { withClientProfileGitEnv } from '../../aiborg/binding/client-profile-process-env'
 
 /** Result of a streamed git command; `stoppedEarly` is true when onStdout asked to stop before the child exited. */
 export type GitStreamResult = { stoppedEarly: boolean }
@@ -120,7 +121,8 @@ export async function gitStreamStdout(
           const spawnStartedAt = performance.now()
           child = spawn(command.binary, command.args, {
             cwd: command.cwd,
-            env: untranslatedGitOutputEnv(spawnOptions.env),
+            // AI-Borg (H28b): this direct WSL spawn bypasses gitSpawn; profile-bound WSL is refused.
+            env: untranslatedGitOutputEnv(withClientProfileGitEnv(spawnOptions.env, options)),
             stdio: spawnOptions.stdio,
             windowsHide: true
           })

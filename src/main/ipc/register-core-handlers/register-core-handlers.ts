@@ -95,6 +95,7 @@ import { callRuntimeSessionSearch } from '../../ai-vault/runtime-session-search-
 import { ensureStructuredAgentSessionHostUnlessRefused } from '../../runtime/structured-agent-session-host-refusal'
 import type { PluginService } from '../../plugins/plugin-service'
 import type { PluginMarketplaceHandlerServices } from '../plugin-marketplaces'
+import { registerAiborgClientProfileHandlers } from '../../aiborg/ipc/client-profile-ipc'
 
 let registered = false
 
@@ -200,6 +201,7 @@ export function registerCoreHandlers(
     onAuthMutation: lifecycleOptions.onOrcaProfileAuthMutation,
     onBeforeSignOut: lifecycleOptions.onBeforeOrcaProfileSignOut
   })
+  registerAiborgClientProfileHandlers() // AI-Borg (H37)
   registerBrowserHandlers()
   registerShellHandlers(store)
   registerPetHandlers()

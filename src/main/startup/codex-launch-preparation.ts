@@ -6,12 +6,18 @@ import { getDefaultWslDistro } from '../wsl'
 import { isAgentStatusHooksEnabledForAgent } from '../agent-hooks/managed-agent-hook-controls'
 import { ensureRealHomeCodexHookState } from '../codex/codex-real-home-hook-install'
 import { mainProcessState as state } from './main-process-state'
+import { clientProfileCodexLaunchHome } from '../aiborg/agents/client-profile-agent-hooks'
 
 export async function prepareCodexRuntimeHomeForLaunch(
   target?: CodexAccountSelectionTarget,
   launchEnv?: NodeJS.ProcessEnv,
   launchContext?: CodexHomeLaunchContext
 ): Promise<string | null> {
+  // AI-Borg (H60): under a client profile Codex uses P/codex, never the `~/.codex` runtime sync.
+  const clientProfileHome = clientProfileCodexLaunchHome(launchEnv, target)
+  if (clientProfileHome) {
+    return clientProfileHome
+  }
   const runtimeHome = state.codexRuntimeHome
   if (!runtimeHome) {
     throw new Error('Codex runtime home service is not initialized')

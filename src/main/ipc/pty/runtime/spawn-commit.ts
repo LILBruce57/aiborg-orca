@@ -35,6 +35,7 @@ import {
   discardUnpersistedPtySpawn,
   registerPersistedPtySpawn
 } from '../pane/spawn-registration'
+import { commitClientProfilePtyBinding } from '../../../aiborg/binding/client-profile-pty-spawn'
 
 export async function commitRuntimePtySpawn(ctx: RuntimePtySpawnState) {
   const args = ctx.args
@@ -202,6 +203,7 @@ export async function commitRuntimePtySpawn(ctx: RuntimePtySpawnState) {
     ctx.deps.runtime?.registerPreAllocatedHandleForPty(ctx.result.id, args.preAllocatedHandle)
   }
   ptyOwnership.set(ctx.result.id, args.connectionId ?? null)
+  commitClientProfilePtyBinding(ctx, ctx.result.id) // AI-Borg (H22d)
   if (ctx.result.incarnationId) {
     ptyIncarnationById.set(ctx.result.id, ctx.result.incarnationId)
   }

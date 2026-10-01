@@ -34,6 +34,7 @@ import {
 } from '../pane/spawn-reservation'
 import type { RuntimePtySpawnState } from './spawn-state'
 import { applyAgentWorkspaceTrustToSpawn } from '../../../agent-workspace-trust-spawn'
+import { applyClientProfileEnvToRuntimeSpawn } from '../../../aiborg/binding/client-profile-pty-spawn'
 
 /** Headless spawns need the same host-side environment isolation as desktop spawns. */
 export async function buildRuntimePtySpawnOptions(
@@ -102,6 +103,7 @@ export async function buildRuntimePtySpawnOptions(
     ctx.spawnOptions.envToDelete = removeCodexHomeDeletionRequests(ctx.spawnOptions.envToDelete)
   }
   deleteRequestedEnvKeys(ctx.env, ctx.spawnOptions.envToDelete)
+  await applyClientProfileEnvToRuntimeSpawn(ctx) // AI-Borg (H21)
   promoteAgentTeamsShimPath(ctx.env, ctx.requestedAgentTeamsPath)
   const noDaemonLaunch = planCodexNoDaemonLaunch({
     command: ctx.launchCommand,

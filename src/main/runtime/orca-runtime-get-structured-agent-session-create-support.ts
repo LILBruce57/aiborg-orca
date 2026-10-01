@@ -24,6 +24,11 @@ import { getProfileUserDataPath } from '../orca-profiles/profile-storage-paths'
 import { parseWslUncPath } from '../../shared/wsl-paths'
 import { parseWorkspaceKey } from '../../shared/workspace-scope'
 import { applyStructuredCodexWorkspaceTrust } from '../agent-workspace-trust-spawn'
+import {
+  assertClientProfileAdoptionHome,
+  withActiveClientProfileAgentLaunchEnv,
+  withClientProfileAgentLaunchEnv
+} from '../aiborg/agents/profile-agent-env'
 
 export class OrcaRuntimeWithGetStructuredAgentSessionCreateSupport extends OrcaRuntimeWithGetWorktreePs {
   async getStructuredAgentSessionCreateSupport(
@@ -116,9 +121,9 @@ export class OrcaRuntimeWithGetStructuredAgentSessionCreateSupport extends OrcaR
   async resolveStructuredAgentAccountHome(
     agent: 'claude' | 'codex'
   ): Promise<{ variable: 'CLAUDE_CONFIG_DIR' | 'CODEX_HOME'; path: string }> {
-    const launchEnv = resolveTuiAgentLaunchEnv(
-      agent,
-      this.requireStore().getSettings().agentDefaultEnv
+    // AI-Borg (H30): record-less reads follow the active client profile's homes.
+    const launchEnv = withActiveClientProfileAgentLaunchEnv(
+      resolveTuiAgentLaunchEnv(agent, this.requireStore().getSettings().agentDefaultEnv)
     )
     if (agent === 'claude') {
       return {
@@ -182,7 +187,11 @@ export class OrcaRuntimeWithGetStructuredAgentSessionCreateSupport extends OrcaR
     if (committedReplay) {
       return committedReplay
     }
-    const selectedAccountHomePath = await resolveAccountHomePath({ launchEnv, location })
+    const selectedAccountHomePath = await resolveAccountHomePath({
+      // AI-Borg (H30): a workspace under a client profile pins that profile's agent home.
+      launchEnv: withClientProfileAgentLaunchEnv(location.workspaceId, launchEnv),
+      location
+    })
     // Adopting pins the account home to wherever the conversation actually lives, which is not
     // necessarily the one a fresh create would pick: Codex resolves its rollout under
     // `accountHome.path`, and Claude reads its transcript under `<home>/projects`. Resuming under
@@ -197,6 +206,7 @@ export class OrcaRuntimeWithGetStructuredAgentSessionCreateSupport extends OrcaR
           selectedAccountHomePath
         })
       : null
+    assertClientProfileAdoptionHome(input.agent, location.workspaceId, adoption?.accountHomePath) // AI-Borg (H30)
     return {
       envelope: {
         sessionId: input.envelope.sessionId,

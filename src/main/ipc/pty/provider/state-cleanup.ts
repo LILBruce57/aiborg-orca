@@ -26,6 +26,7 @@ import {
   rendererVisibilityKnownPtys,
   visibleRendererPtys
 } from '../delivery/visibility-state'
+import { forgetClientProfilePtyBinding } from '../../../aiborg/binding/client-profile-pty-spawn'
 
 /**
  * Tear down per-PTY provider-scoped state.
@@ -43,6 +44,7 @@ export function clearProviderPtyState(
     // may drop it — a disconnect that can reconnect is not a death, and a reused
     // id must never inherit a dead pane's Codex account.
     forgetCodexPaneAccount(id)
+    forgetClientProfilePtyBinding(id) // AI-Borg (H22e)
   }
   // Why: OpenCode and Pi both allocate PTY-scoped runtime state outside the
   // node-pty process table. Centralizing provider cleanup avoids drift where a

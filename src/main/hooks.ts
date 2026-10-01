@@ -20,6 +20,7 @@ import {
   signalProcessTree
 } from '../shared/child-process/process-tree-termination'
 import { createOutputSink } from '../shared/child-process/bounded-output-sink'
+import { prepareClientProfileHookEnv } from './aiborg/binding/client-profile-process-env'
 
 const HOOK_TIMEOUT = 120_000 // 2 minutes
 
@@ -220,6 +221,11 @@ export function runHook(
 
   const runtimeTarget = getHookRuntimeTarget(projectRuntime)
   const wslInfo = getHookWslContext(cwd, runtimeTarget)
+  // AI-Borg (H26): profile env for profile-bound repos; WSL and unappliable profiles refuse.
+  const clientProfileHook = prepareClientProfileHookEnv(cwd, Boolean(wslInfo))
+  if (!clientProfileHook.ok) {
+    return Promise.resolve({ success: false, output: clientProfileHook.message })
+  }
 
   if (wslInfo) {
     // Why: hook scripts run inside WSL, so translate the ORCA_* Windows UNC paths to Linux paths.
@@ -260,7 +266,10 @@ export function runHook(
       .catch((error: unknown) => hookSpawnFailure(error, { hookName, cwd }))
   }
 
-  const shellHookEnv: NodeJS.ProcessEnv = { ...process.env, ...getSetupEnvVars(repo, cwd) }
+  const shellHookEnv: NodeJS.ProcessEnv = clientProfileHook.apply({
+    ...process.env,
+    ...getSetupEnvVars(repo, cwd)
+  })
   dropIncoherentCondaActivationEnv(shellHookEnv)
 
   return new Promise<HookProcessOutcome>((resolve) => {
