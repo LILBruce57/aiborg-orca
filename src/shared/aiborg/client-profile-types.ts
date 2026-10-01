@@ -114,6 +114,7 @@ export type ClientProfileAuditEvent =
   | 'push.allowed'
   | 'push.blocked'
   | 'github.write.blocked'
+  | 'github.overview.refresh'
   | 'repo.mismatch.shown'
   | 'repo.mismatch.override'
   | 'secret.set'
@@ -155,6 +156,7 @@ export const CLIENT_PROFILE_IPC = {
   removeSshPrivateKey: 'aiborgClientProfiles:removeSshPrivateKey',
   recordMismatch: 'aiborgClientProfiles:recordMismatch',
   setMachineSettings: 'aiborgClientProfiles:setMachineSettings',
+  getOverview: 'aiborgClientProfiles:getOverview',
   changed: 'aiborgClientProfiles:changed'
 } as const
 

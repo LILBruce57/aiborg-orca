@@ -20,6 +20,7 @@
  *   removeSshPrivateKey({ profileId })                 -> void
  *   recordMismatch({ profileId, event, worktreeId? })  -> void   (repo.mismatch.shown | .override)
  *   setMachineSettings({ sshAuthSock?, windowsSsh? })  -> ClientProfilesState
+ *   getOverview({ force? })                            -> ClientProfileOverviewResult (active profile, 5-min cache)
  *   event `changed` (main -> renderer)                 -> ClientProfilesState
  *
  * Errors reject the invoke with an `AI-Borg: …` message. Secret values only ever flow
@@ -57,6 +58,10 @@ import {
 import { buildClientProfilesState, forgetClientProfileSecretStatus } from './client-profile-state'
 import { resolveRepoIdClientProfileId } from '../binding/client-profile-resolution'
 import { forgetCachedClientProfileSecrets } from '../binding/client-profile-core-access'
+import {
+  forgetClientProfileOverview,
+  getClientProfileOverview
+} from '../overview/client-profile-overview'
 
 type Args = Record<string, unknown>
 
@@ -156,6 +161,7 @@ export function initClientProfilesForMain(
     ...options,
     onSecretChange: (id, event, fields) => {
       forgetSecretCaches(id)
+      forgetClientProfileOverview(id)
       appendClientProfileAudit(id, event, fields)
       options.onSecretChange?.(id, event, fields)
     }
@@ -241,6 +247,7 @@ export function registerAiborgClientProfileHandlers(): void {
       rt
     )
     forgetSecretCaches(id)
+    forgetClientProfileOverview(id)
     return result.ok ? { ok: true, state: state(a, rt) } : result
   })
   handle(CLIENT_PROFILE_IPC.setSecret, async (a, rt) => {
@@ -320,4 +327,7 @@ export function registerAiborgClientProfileHandlers(): void {
     })
     return state(a, rt)
   })
+  handle(CLIENT_PROFILE_IPC.getOverview, (a) =>
+    getClientProfileOverview({ force: a.force === true })
+  )
 }

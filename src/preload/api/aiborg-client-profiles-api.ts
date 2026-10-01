@@ -7,6 +7,7 @@ import type {
   ClientProfileSecretState,
   ClientProfilesState
 } from '../../shared/aiborg/client-profile-types'
+import type { ClientProfileOverviewResult } from '../../shared/aiborg/client-profile-overview-types'
 
 /** Renderer contract for client profiles; documented in src/main/aiborg/ipc/client-profile-ipc.ts. */
 export type AiborgClientProfilesApi = {
@@ -56,6 +57,8 @@ export type AiborgClientProfilesApi = {
     sshAuthSock?: string | null
     windowsSsh?: string | null
   }) => Promise<ClientProfilesState>
+  /** The active profile's GitHub overview; `force` skips main's 5-minute cache. */
+  getOverview: (args?: { force?: boolean }) => Promise<ClientProfileOverviewResult>
   onChanged: (callback: (state: ClientProfilesState) => void) => () => void
 }
 

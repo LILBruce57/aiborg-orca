@@ -182,6 +182,11 @@ const CALL_SITES: CallSite[] = [
     file: 'src/renderer/src/aiborg/ClientProfileMismatchBanner.tsx',
     pattern: /checkClientProfileForWorktree\(activeWorktreeId\)/g,
     count: 1
+  },
+  {
+    hook: 'H61',
+    file: 'src/renderer/src/components/cmd-j/quick-actions.ts',
+    pattern: /\.\.\.getClientProfileOverviewQuickActions\(\)/
   }
 ]
 

@@ -44,6 +44,11 @@ export function getActiveClientProfile(): ClientProfile | null {
   return activeId ? getClientProfileById(activeId) : null
 }
 
+/** Whether the keychain holds `name` for the profile (status only, never the value). */
+export function isClientProfileSecretStored(profileId: string, name: string): boolean {
+  return getClientProfileRuntime()?.keychain.status(profileId, [name])[name] === 'set'
+}
+
 export function getClientProfileRepoBindings(): Readonly<Record<string, string>> {
   return getClientProfileRuntime()?.sidecar.read().repoBindings ?? {}
 }
