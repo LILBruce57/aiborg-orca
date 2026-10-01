@@ -84,6 +84,7 @@ import { e2eApi } from './api/e2e-bridge'
 import { mobileApi } from './api/mobile-bridge'
 import { agentStatusApi } from './api/agent-status-bridge'
 import { speechApi } from './api/speech-bridge'
+import { aiborgApi } from './api/aiborg-client-profiles-bridge'
 
 installNativeFileDropHandlers()
 installBrowserFindListener()
@@ -188,9 +189,11 @@ const api = {
 if (process.contextIsolated) {
   try {
     contextBridge.exposeInMainWorld('api', api)
+    contextBridge.exposeInMainWorld('aiborg', aiborgApi) // AI-Borg (H38)
   } catch (error) {
     console.error(error)
   }
 } else {
   window.api = api
+  window.aiborg = aiborgApi // AI-Borg (H38)
 }

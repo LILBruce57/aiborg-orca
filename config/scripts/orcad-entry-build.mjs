@@ -16,6 +16,7 @@ export const ORCAD_EXTERNAL_MODULES = [
   'electron',
   'node-pty',
   '@parcel/watcher',
+  '@napi-rs/keyring', // AI-Borg (H46b): native; orcad never loads it (no keychain there)
   'fsevents',
   'bun:ffi',
   'bun:sqlite'
