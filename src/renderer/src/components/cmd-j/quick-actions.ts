@@ -9,6 +9,7 @@ import {
 import { translate } from '@/i18n/i18n'
 import { createLocalizedCatalog } from '@/i18n/localized-catalog'
 import { getNativeChatSplitQuickActions } from './native-chat-split-quick-actions'
+import { getClientProfileOverviewQuickActions } from '../../aiborg/client-profile-overview-quick-action'
 
 export type CmdJQuickActionRunResult =
   | { status: 'ok' }
@@ -193,5 +194,6 @@ export const getCmdJQuickActions = createLocalizedCatalog((): CmdJQuickAction[] 
       ctx.openAddQuickCommand()
       return { status: 'ok' }
     }
-  }
+  },
+  ...getClientProfileOverviewQuickActions()
 ])

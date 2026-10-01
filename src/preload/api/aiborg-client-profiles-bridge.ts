@@ -24,6 +24,7 @@ export const aiborgClientProfilesApi = {
   removeSshPrivateKey: (args) => ipcRenderer.invoke(CLIENT_PROFILE_IPC.removeSshPrivateKey, args),
   recordMismatch: (args) => ipcRenderer.invoke(CLIENT_PROFILE_IPC.recordMismatch, args),
   setMachineSettings: (args) => ipcRenderer.invoke(CLIENT_PROFILE_IPC.setMachineSettings, args),
+  getOverview: (args) => ipcRenderer.invoke(CLIENT_PROFILE_IPC.getOverview, args ?? {}),
   onChanged: (callback) => {
     const listener = (_event: Electron.IpcRendererEvent, state: ClientProfilesState): void =>
       callback(state)

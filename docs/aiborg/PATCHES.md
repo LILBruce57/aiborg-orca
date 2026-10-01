@@ -142,6 +142,26 @@ Main-process notes:
 - **gh logins** from the wizard use `--insecure-storage`: gh keys its keyring entry by host only, so a keyring login would be shared by every `GH_CONFIG_DIR` (all profiles and the personal one). The token then lives in `P/gh/hosts.yml`, which the delete flow wipes.
 - **Known gaps:** `gitExecFileAsyncBuffer` (`git show` blob reads) gets no profile env; other agents' hook files (Gemini, Cursor, …) stay under the home directory; the AWS CLI's SSO and CLI token caches (`~/.aws/sso/cache`, `~/.aws/cli/cache`) are always in the real home, so AWS SSO is not isolated per profile and survives a delete (the wizard and revoke checklist say so); a Codex `cli_auth_credentials_store = keyring` login is not removed on delete (Codex's default file store is in `P/codex`); `pushInsteadOf` covers the common URL spellings (plain, `git@`/`x-access-token@`/`oauth2@` userinfo, `:22`, `ssh.github.com`), while other userinfo, IP hosts and SSH host aliases rely on the pre-push hook and the app-level guard, which `--no-verify` skips for the hook only; a stale `ptyBindings` entry is dropped when its session is next spawned and found dead, not at startup.
 
+### 1d. Client profiles: per-profile overview (Phase 4)
+
+One renderer touch. The main side needs none: the overview runs `gh api graphql` through the
+existing gh runner without a `cwd`, so H29 injects the **active** profile's `GH_TOKEN` /
+`GH_CONFIG_DIR` and the central H54 guard still sees the (read-only) call.
+
+| ID  | File:line (upstream base) | Change | Why | Phase | Test |
+| --- | ------------------------- | ------ | --- | ----- | ---- |
+| H61 | `src/renderer/src/components/cmd-j/quick-actions.ts` after `:11`, before `:197` | import, then `...getClientProfileOverviewQuickActions()` as the last catalog entry | Cmd+J "Client Profile Overview" opens the overview sheet; always available on desktop (the palette memoizes availability without watching the profile store, and the sheet explains Personal mode); the action returns `[]` without the desktop bridge | 4 | `hook-call-sites.test.ts`, `client-profile-overview-display.test.ts` |
+
+Fork-only pieces:
+
+- `src/main/aiborg/overview/client-profile-overview.ts` (active profile only, 5-minute cache per profile id plus a cheap host/orgs/store-repos/bindings signature, in-flight coalescing, `github.overview.refresh` audit line per real refresh, error classification with token-shape redaction; a 401 while the profile has a stored `GH_TOKEN` is `token-rejected`, not "run gh auth login"; a rate-limited refresh keeps the last good answer with the limit message). The gh call passes `idempotent: false`: the runner re-resolves the *active* profile's env on every retry, so a retry after a switch would carry another profile's token. `forgetClientProfileOverview()` runs on secret set/delete and profile delete (`client-profile-ipc.ts`).
+- `client-profile-overview-query.ts` (one GraphQL read: four `user:`-scoped searches per allowed org, so one unreadable org cannot blank the others, and recent branches of up to 10 known repos; results owned by any other org or linked off the profile host are dropped; GraphQL errors become a redacted per-org problem: SSO, not found, forbidden, failed), `client-profile-overview-repos.ts` (known repos of the profile whose `origin` is in its allowedOrgs, read from git config on a cache miss only; `truncated` when more than 10 match).
+- `listKnownClientProfileRepos()` in `binding/client-profile-resolution.ts`; `isClientProfileSecretStored()` in `binding/client-profile-core-access.ts`; `getOverview` on the client-profile IPC contract (`CLIENT_PROFILE_IPC.getOverview`, preload `window.aiborg.clientProfiles.getOverview`); types in `src/shared/aiborg/client-profile-overview-types.ts`; audit event `github.overview.refresh`.
+- Renderer: `ClientProfileOverviewSheet.tsx` + `ClientProfileOverviewSections.tsx` (right-hand `Sheet`; header and body both show only the answer whose `profileId` is the active one, via `client-profile-overview-display.ts`), opened from the chip menu ("Overview…") or Cmd+J via `client-profile-overview-open.ts`; the chip mounts the sheet, so no extra shell touch. "gh not logged in" shows the profile's `gh auth login` setup-terminal row.
+- Not reused: `github-pull-request-api.ts` / `github-work-item-api.ts` are per-repo calls (one gh request per repo and kind); one org-scoped GraphQL query spends a single request per refresh.
+- Tests: `src/main/aiborg/overview/client-profile-overview.test.ts` (org filtering, profile token, host-link filter, GHES host, cache and its invalidation by orgs/repos/secret, repo cap, no token in payload, audit incl. personal mode and `profile-changed`, error states incl. token-rejected, SSO, missing lists, rate-limit fallback, and a transient error plus a profile switch never re-spawning with another token); `src/renderer/src/aiborg/client-profile-overview-display.test.ts` (stale answer hidden in header and body, Cmd+J availability).
+- Not done: the optional sidebar filter to the active profile's repos.
+
 ## 2. Fork-only files (no conflict risk)
 
 - `src/shared/aiborg/brand.ts` and its CJS mirror `config/aiborg/brand.cjs` (kept equal by `brand.test.ts`).

@@ -265,6 +265,11 @@ export function getPtyClientProfileBinding(ptyOrSessionId: string): string | nul
   return getClientProfilePtyBinding(ptyOrSessionId)
 }
 
+/** Every repo the host knows (the app's Store); the overview filters them per profile. */
+export function listKnownClientProfileRepos(): readonly ClientProfileRepo[] {
+  return host?.repos.getRepos() ?? []
+}
+
 /** Repo source for hosts without a Store (tests, scripts): a plain list of known repos. */
 export function registerClientProfileRepoLookup(lookup: () => readonly ClientProfileRepo[]): void {
   setClientProfileRepoSource(host?.kind ?? 'app', {
