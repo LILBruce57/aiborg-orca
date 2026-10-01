@@ -29,6 +29,8 @@ export {
   CodexAppServerRequestError,
   isCodexAppServerRequestError
 } from './codex-app-server-request-error'
+import { stripClientProfileInheritedEnv } from '../../shared/aiborg/client-profile-inherited-env'
+import { trackClientProfileStructuredChild } from '../aiborg/agents/client-profile-structured-children'
 export { CodexAppServerFrameSizeError } from './codex-app-server-frame-size-error'
 
 // Structured chat needs a persistent bidirectional child and per-request deadlines;
@@ -60,12 +62,17 @@ export async function openCodexAppServerConnection(
   handlers: CodexAppServerConnectionHandlers = {},
   spawnImpl: typeof spawnProcess = spawnProcess
 ): Promise<CodexAppServerConnection> {
-  const childEnv: NodeJS.ProcessEnv = { ...process.env, ...launch.env }
+  // AI-Borg (H31): a profile launch's deleted keys leave main's inherited env too.
+  const childEnv: NodeJS.ProcessEnv = {
+    ...stripClientProfileInheritedEnv(process.env, launch.env),
+    ...launch.env
+  }
   for (const key of launch.envToDelete ?? []) {
     delete childEnv[key]
   }
   const spawnSpec = createProviderSpawnSpec(launch, childEnv, process.platform)
   const child = spawnImpl(spawnSpec)
+  trackClientProfileStructuredChild(launch.env, child) // AI-Borg (H31d)
 
   function terminateProcessTree(): Promise<boolean> {
     // The supervisor and provider own separate POSIX groups so the supervisor can prove the

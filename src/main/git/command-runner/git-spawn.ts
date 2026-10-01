@@ -7,6 +7,7 @@ import { untranslatedGitOutputEnv } from './git-process-env'
 import { prepareWindowsHostGitEnvironment } from './windows-host-git-environment'
 import type { GitAdmissionTier } from './git-exec-options'
 import { acquireGitAdmission } from './git-subprocess-admission'
+import { withClientProfileGitEnv } from '../../aiborg/binding/client-profile-process-env'
 
 /**
  * Spawn a git child process. Drop-in replacement for
@@ -111,7 +112,10 @@ export function gitSpawn(args: string[], options: GitSpawnOptions): ChildProcess
   const spawnStartedAt = performance.now()
   const child = spawn(resolved.binary, resolved.args, {
     ...spawnOptions,
-    env: untranslatedGitOutputEnv(spawnOptions.env ?? process.env),
+    // AI-Borg (H28): the cwd's client profile env.
+    env: untranslatedGitOutputEnv(
+      withClientProfileGitEnv(spawnOptions.env, options) ?? process.env
+    ),
     windowsHide: true,
     cwd: resolved.cwd
   })

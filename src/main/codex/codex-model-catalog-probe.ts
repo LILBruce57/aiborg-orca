@@ -9,6 +9,7 @@ import type {
   AgentModelCatalogProbe,
   AgentModelCatalogSuccess
 } from '../native-chat/agent-model-catalog/agent-model-catalog-store'
+import { withClientProfileEnvForAccountHome } from '../aiborg/agents/profile-agent-env'
 
 // Why 15s: the whole probe session is SIGKILLed at the deadline, and a cold
 // `model/list` may pay one network /models fetch behind provider auth.
@@ -49,7 +50,11 @@ export function createCodexModelCatalogProbe(
         command,
         args: [...CODEX_SHORT_LIVED_PROBE_APP_SERVER_ARGS],
         cliPath: command,
-        env: { ...definedEnv(environment), CODEX_HOME: accountHomePath },
+        // AI-Borg (H30): a profile home lists models under that profile's env.
+        env: withClientProfileEnvForAccountHome('codex', accountHomePath, {
+          ...definedEnv(environment),
+          CODEX_HOME: accountHomePath
+        }),
         timeoutMs: CODEX_MODEL_CATALOG_PROBE_TIMEOUT_MS
       },
       (rpc) => fetchCodexModelCatalogListing({ connection: rpc })

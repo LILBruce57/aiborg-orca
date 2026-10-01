@@ -23,6 +23,7 @@ import {
   readCodexStateDbBackfillStatus,
   type CodexStateDbBackfillStatus
 } from './codex-state-db'
+import { withClientProfileCodexHomeEnv } from '../aiborg/agents/client-profile-usage'
 
 const RECOVERY_POLL_INTERVAL_MS = 5_000
 const RECOVERY_RETRY_DELAY_MS = 2_000
@@ -111,7 +112,11 @@ function spawnRecoveryProcess(
     cwd: codexHomePath,
     stdio: ['pipe', 'ignore', 'ignore'],
     windowsHide: true,
-    env: withCliRuntimeOnPath(command, { ...process.env, CODEX_HOME: codexHomePath })
+    // AI-Borg (H60e): a profile home gets the profile's env, not main's personal keys.
+    env: withCliRuntimeOnPath(
+      command,
+      withClientProfileCodexHomeEnv(codexHomePath, { ...process.env, CODEX_HOME: codexHomePath })
+    )
   })
 }
 

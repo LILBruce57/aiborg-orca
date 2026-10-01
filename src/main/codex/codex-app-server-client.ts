@@ -2,6 +2,7 @@ import type { ChildProcessHandle, ProcessSpec } from '../../shared/child-process
 import { spawnProcess } from '../../shared/child-process/run-process'
 import { normalizeHookTrustKeyForLookup } from './config-toml-trust'
 import { runCodexAppServerSession, type CodexAppServerInvocation } from './codex-app-server-session'
+import { withClientProfileCodexTrustGrantEnv } from '../../shared/aiborg/client-profile-codex-trust-gate'
 
 // Why: Codex gates hooks on a `trusted_hash` it computes from a private
 // canonical-JSON identity. Orca used to replicate that algorithm
@@ -113,8 +114,9 @@ export async function runCodexHookTrustGrantSession(
   ) => ChildProcessHandle = (program, args, options) =>
     spawnProcess({ program, args, ...options } as ProcessSpec)
 ): Promise<CodexHookTrustGrantSessionResult> {
+  const invocation = withClientProfileCodexTrustGrantEnv(request.invocation) // AI-Borg (H60)
   return runCodexAppServerSession(
-    request.invocation,
+    invocation,
     async (rpc) => {
       const expectedKeys = new Set(request.expectedTrustKeys)
       const matchManaged = (listing: CodexHookListing): boolean =>

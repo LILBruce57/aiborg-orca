@@ -8,6 +8,7 @@ import {
   type CodexAppServerSpawn
 } from './codex-app-server-process-tree-kill'
 import { createCodexAppServerRecordReader } from './codex-app-server-record-reader'
+import { stripClientProfileInheritedEnv } from '../../shared/aiborg/client-profile-inherited-env'
 
 // Why: `codex app-server` is Orca's sanctioned RPC surface into Codex-owned
 // state (hook trust hashes, the sqlite thread index). This module owns the
@@ -102,7 +103,11 @@ export async function runCodexAppServerSession<T>(
 ): Promise<T> {
   // Why: a default-home grant must run against the real ~/.codex, so strip an
   // inherited CODEX_HOME (envToDelete) after applying the overlay, not before.
-  const childEnv: NodeJS.ProcessEnv = { ...process.env, ...invocation.env }
+  // AI-Borg (H31): a profile invocation's deleted keys leave main's inherited env too.
+  const childEnv: NodeJS.ProcessEnv = {
+    ...stripClientProfileInheritedEnv(process.env, invocation.env),
+    ...invocation.env
+  }
   for (const key of invocation.envToDelete ?? []) {
     delete childEnv[key]
   }

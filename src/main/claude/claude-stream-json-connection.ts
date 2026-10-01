@@ -22,6 +22,8 @@ import {
   createClaudeUserMessageQueue
 } from './claude-agent-sdk-user-message-queue'
 import type { ClaudeStructuredSdkOptions } from './claude-structured-launch-resolution'
+import { stripClientProfileInheritedEnv } from '../../shared/aiborg/client-profile-inherited-env'
+import { trackClientProfileStructuredChild } from '../aiborg/agents/client-profile-structured-children'
 
 export { ClaudeControlRequestError }
 
@@ -131,7 +133,11 @@ export async function openClaudeStreamJsonConnection(
       // Orca's own CLAUDE_CONFIG_DIR is dropped for the same reason the launch drops the
       // shell's: the record's pin in `launch.env` must be the only home the child sees.
       env: buildClaudeChildProcessEnv(launch.env, {
-        inheritedEnv: withoutInheritedClaudeConfigDir(process.env),
+        // AI-Borg (H31): a profile launch's deleted keys leave main's inherited env too.
+        inheritedEnv: stripClientProfileInheritedEnv(
+          withoutInheritedClaudeConfigDir(process.env),
+          launch.env
+        ),
         scrubConfiguredChildSessionStamps: true
       }),
       pathToClaudeCodeExecutable: launch.pathToClaudeCodeExecutable,
@@ -144,6 +150,7 @@ export async function openClaudeStreamJsonConnection(
   if (!child) {
     throw new Error('the claude agent SDK returned without spawning a child')
   }
+  trackClientProfileStructuredChild(launch.env, child) // AI-Borg (H31d)
   // This child owns the account's credentials for as long as it runs, exactly as a
   // Claude PTY does — hold the OAuth-refresh gate so a managed refresh cannot rotate
   // the single-use token out from under it mid-turn. Entered below, once a release

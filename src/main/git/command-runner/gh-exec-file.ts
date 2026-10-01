@@ -33,6 +33,7 @@ import {
   GH_RETRY_AFTER_MAX_MS,
   GH_RETRY_DELAYS_MS
 } from './gh-retry-policy'
+import { withClientProfileGhEnv } from '../../aiborg/binding/client-profile-process-env'
 
 // `cwd?` omitted for non-repo-scoped gh calls (rate_limit, listAccessibleProjects) so one WSL-aware wrapper serves both.
 // `wslDistro?` routes global cwd-less gh through `wsl.exe -d <distro>` on WSL-only Windows where gh.exe isn't on host PATH.
@@ -193,7 +194,8 @@ export async function ghExecFileWithScopeAsync(
           maxBuffer: options.maxBuffer,
           // Why: bound gh so one stuck child fails visibly instead of wedging the IPC lane.
           timeout: timeoutMs,
-          env: nonInteractiveGhEnv(boundEnv ?? options.env),
+          // AI-Borg (H29/H54): profile GH_TOKEN/GH_CONFIG_DIR; writes outside allowedOrgs refused.
+          env: nonInteractiveGhEnv(withClientProfileGhEnv(boundEnv ?? options.env, options, args)),
           signal: options.signal,
           onDeadlineKill: () => logHostedCliDeadlineKill('gh', resolved.binary, args, timeoutMs)
         },

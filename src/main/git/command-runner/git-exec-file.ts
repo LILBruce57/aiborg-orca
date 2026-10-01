@@ -26,6 +26,7 @@ import { buildNetworkSshPolicyEnv } from './git-ssh-policy-env'
 import { nonInteractiveGitEnv, untranslatedGitOutputEnv } from './git-process-env'
 import { acquireGitAdmission } from './git-subprocess-admission'
 import { GitCommandTimeoutError, gitCommandTimeoutMs } from './git-command-timeout'
+import { withClientProfileGitEnv } from '../../aiborg/binding/client-profile-process-env'
 
 /**
  * Async git command execution. Drop-in replacement for
@@ -54,7 +55,11 @@ async function gitExecFileAsyncUnlocked(
         options.env,
         options.signal
       )
-      const env = environmentReady ? await environmentReady : options.env
+      // AI-Borg (H27): the cwd's client profile env; personal mode returns the same object.
+      const env = withClientProfileGitEnv(
+        environmentReady ? await environmentReady : options.env,
+        options
+      )
       const effectiveOptions = env === options.env ? options : { ...options, env }
       resolved = resolveGitCommand(
         args,
@@ -306,10 +311,11 @@ export function gitExecFileSync(
   const resolved = resolveCommand('git', args, options.cwd)
   const spawnStartedAt = performance.now()
   try {
+    // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: an `encoding` is always passed, so execFileSync returns a string.
     return execFileSync(resolved.binary, resolved.args, {
       cwd: resolved.cwd,
       encoding: options.encoding ?? 'utf-8',
-      env: untranslatedGitOutputEnv(),
+      env: untranslatedGitOutputEnv(withClientProfileGitEnv(undefined, options)), // AI-Borg (H47)
       stdio: options.stdio ?? ['pipe', 'pipe', 'pipe'],
       timeout: options.timeout ?? GIT_EXEC_SYNC_TIMEOUT_MS,
       windowsHide: true
