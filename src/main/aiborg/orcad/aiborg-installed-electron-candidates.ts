@@ -2,7 +2,7 @@ import { posix, win32 } from 'node:path'
 import { AIBORG_BRAND } from '../../../shared/aiborg/brand'
 
 /**
- * Where orcad looks for an installed AI-Borg to host its browser (hook H22). Upstream's list names
+ * Where orcad looks for an installed AI-Borg to host its browser (hook H57). Upstream's list names
  * stock Orca's install paths, and Windows paths match case-insensitively, so orcad would launch a
  * side-by-side stock Orca.
  */
