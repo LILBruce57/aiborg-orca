@@ -180,6 +180,10 @@ async function startOrcadRuntime(
   // Why: orcad IS the runtime authority — loading as 'desktop' would classify its
   // own runtime-scheduled automations as ambiguous mirrors and orphan them.
   profileStoreForShutdown = profileStore
+  // AI-Borg (H22b): no keychain here, so profile-bound spawns are refused.
+  const { installOrcadClientProfileRefusal } =
+    await import('../aiborg/binding/client-profile-orcad')
+  installOrcadClientProfileRefusal(profileStore, runtimeUserDataPath)
   // Why: every SSH connect consults this sidecar. Left unbound it reports nothing trusted,
   // which is safe but silently discards accept records on every launch.
 

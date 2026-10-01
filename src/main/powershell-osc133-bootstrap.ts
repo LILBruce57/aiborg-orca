@@ -1,5 +1,6 @@
 import { getPowerShellOmpShellWrapper } from './pty/omp-shell-wrapper'
 import { getPowerShellCodexShellLaunchPreflight } from '../shared/codex-shell-function'
+import { getClientProfilePowerShellRestoreSnippet } from './aiborg/env/client-profile-shell-restore'
 export { encodePowerShellCommand } from '../shared/powershell-command-encoding'
 
 /**
@@ -100,7 +101,8 @@ ${getPowerShellCodexShellLaunchPreflight()}
 `
 
 export function getPowerShellOsc133Bootstrap(): string {
-  return POWERSHELL_OSC133_BOOTSTRAP
+  // AI-Borg (H36): re-apply the client profile env after $PROFILE.
+  return POWERSHELL_OSC133_BOOTSTRAP + getClientProfilePowerShellRestoreSnippet()
 }
 
 export function isPowerShellExecutableName(shellName: string): boolean {

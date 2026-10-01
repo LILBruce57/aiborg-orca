@@ -27,6 +27,7 @@ import { withCodexTerminalServerIsolationEnv } from '../../../../shared/codex-te
 import { planCodexNoDaemonLaunch } from '../../../pty/codex-no-daemon-launch-command'
 import type { PtyIpcSpawnState } from './spawn-state'
 import { applyAgentWorkspaceTrustToSpawn } from '../../../agent-workspace-trust-spawn'
+import { applyClientProfileEnvToRendererSpawn } from '../../../aiborg/binding/client-profile-pty-spawn'
 
 /** Carries deletions to provider-owned environments, including persistent older daemons. */
 export async function buildPtyIpcSpawnOptions(
@@ -64,6 +65,7 @@ export async function buildPtyIpcSpawnOptions(
     ctx.combinedEnvToDelete = removeCodexHomeDeletionRequests(ctx.combinedEnvToDelete)
   }
   deleteRequestedEnvKeys(ctx.spawnEnv, ctx.combinedEnvToDelete)
+  await applyClientProfileEnvToRendererSpawn(ctx) // AI-Borg (H20/H48)
   promoteAgentTeamsShimPath(ctx.spawnEnv, ctx.requestedAgentTeamsPath)
   ctx.spawnOptions = {
     cols: args.cols,

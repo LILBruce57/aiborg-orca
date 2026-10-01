@@ -6,6 +6,7 @@ import {
   type GitHubApiRepository,
   type GitHubRepoExecOptions
 } from './github-api-repository'
+import { assertGitHubWriteAllowed } from '../aiborg/git/assert-github-write-allowed'
 
 const POLL_INTERVAL_MS = 1_000
 const MAX_POLLS = 180
@@ -79,6 +80,12 @@ export async function mergeGitHubPRStack(args: {
   headSha?: string
   ghOptions: GitHubRepoExecOptions
 }): Promise<{ ok: true } | { ok: false; error: string }> {
+  // AI-Borg (H54)
+  assertGitHubWriteAllowed({
+    owner: args.repository.owner,
+    operation: 'pr.stack-merge',
+    repoPath: args.ghOptions.cwd
+  })
   const endpoint = `repos/${args.repository.owner}/${args.repository.repo}/pulls/${args.prNumber}/merge-async`
   const command = ['api', '-X', 'PUT', endpoint, '-f', `merge_action=${args.mergeAction}`]
   if (args.mergeAction === 'direct_merge') {

@@ -89,7 +89,7 @@ describe('AI-Borg daemon host root (H5)', () => {
   })
 })
 
-describe('AI-Borg orcad browser host (H22)', () => {
+describe('AI-Borg orcad browser host (H57)', () => {
   it('only launches AI-Borg’s own install', async () => {
     const { installedElectronCandidates } = await import('../orcad/orcad-browser-provider')
     const env = { LOCALAPPDATA: 'C:\\Users\\u\\AppData\\Local', ProgramFiles: 'C:\\Program Files' }

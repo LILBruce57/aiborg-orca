@@ -25,6 +25,7 @@ import {
 import { getOriginGitHubApiRepository, githubHostExecOptions } from '../../github-api-repository'
 import { classifyCreatePRError, parseCreatePRPayload } from './create-pr-error-classification'
 import { findOpenPRByHeadBase, readPullRequestTemplate } from './pull-request-template'
+import { assertGitHubWriteAllowed } from '../../../aiborg/git/assert-github-write-allowed'
 export async function createGitHubPullRequest(
   repoPath: string,
   input: CreateHostedReviewInput,
@@ -55,6 +56,7 @@ export async function createGitHubPullRequest(
       error: 'Creating pull requests requires a GitHub remote.'
     }
   }
+  assertGitHubWriteAllowed({ owner: ownerRepo.owner, operation: 'pr.create', repoPath }) // AI-Borg (H54)
   // The runner host-qualifies --repo from options.host for GHES (#8312).
   const repoArg = `${ownerRepo.owner}/${ownerRepo.repo}`
 

@@ -15,6 +15,10 @@ import type { CodexStructuredLaunch } from './codex-structured-session-adapter'
 import type { CodexStructuredPermissionPolicy } from './codex-structured-permission-policy'
 import { resolvePinnedCodexRolloutProof } from './codex-pinned-rollout-proof'
 import { isWindowsProcessStartTimeAvailable } from '../windows/windows-process-table'
+import {
+  assertStructuredClientProfileHome,
+  withStructuredClientProfileInvocation
+} from '../aiborg/agents/profile-agent-env'
 
 export type CodexStructuredLaunchResolverDeps = {
   store: AgentSessionRecordStore
@@ -88,7 +92,12 @@ export function createCodexStructuredLaunchResolver(
     if (accountHome.variable !== 'CODEX_HOME') {
       throw new Error(`codex sessions pin CODEX_HOME, not ${accountHome.variable}`)
     }
-    const { command, environment } = await resolveCodexStructuredInvocation(deps)
+    assertStructuredClientProfileHome(record, 'codex') // AI-Borg (H34)
+    // AI-Borg (H24): profile env over the resolved environment, so it beats resolveCodexOverrides.
+    const { command, environment } = withStructuredClientProfileInvocation(
+      record,
+      await resolveCodexStructuredInvocation(deps)
+    )
     // `record.launchArgs` is deliberately not read: the configured CLI arguments are a terminal
     // concern, and the permission posture they used to smuggle in is derived per acquisition.
     const permissionPolicy = deps.resolvePermissionPolicy?.()

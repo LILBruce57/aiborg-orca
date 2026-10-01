@@ -16,7 +16,7 @@ export function resolveArtifactCloudApiUrl(
   env: NodeJS.ProcessEnv = process.env,
   packaged = isPackaged()
 ): string {
-  // AI-Borg (H20): every artifact and skill cloud request resolves its origin here.
+  // AI-Borg (H55): every artifact and skill cloud request resolves its origin here.
   assertAiborgCloudSharingAllowed()
   const candidate = override?.trim() || env.ORCA_ARTIFACTS_API_URL?.trim()
   const url = new URL(candidate || PRODUCTION_ARTIFACTS_API_URL)

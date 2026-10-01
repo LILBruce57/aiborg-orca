@@ -64,7 +64,7 @@ export function installedElectronCandidates(
   homePath: string,
   environment: NodeJS.ProcessEnv
 ): string[] {
-  // AI-Borg (H22): launch AI-Borg's own install, never a side-by-side stock Orca.
+  // AI-Borg (H57): launch AI-Borg's own install, never a side-by-side stock Orca.
   if (!isUpstreamBehaviorUnderTest()) {
     return aiborgInstalledElectronCandidates(platform, homePath, environment)
   }

@@ -53,6 +53,7 @@ import {
   renderPluginsSettingsSection
 } from './settings-advanced-section-renderers'
 import { renderProjectSettingsSections } from './settings-project-section-renderer'
+import { renderClientProfilesSettingsSection } from '../../aiborg/client-profiles-settings-renderer'
 
 export function renderSettingsLoading(
   interactions: SettingsInteractionController
@@ -117,6 +118,7 @@ export function renderSettingsPage(context: SettingsRenderContext): React.JSX.El
               <ActiveSettingsSectionProvider value={model.activeSectionId}>
                 {renderAgentsSettingsSection(context)}
                 {renderAccountsSettingsSection(context)}
+                {renderClientProfilesSettingsSection(context)}
                 {renderOrchestrationSettingsSection(context)}
                 {renderLinearSettingsSection(context)}
                 {renderDesktopCapabilitySettingsSections(context)}

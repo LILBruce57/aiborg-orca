@@ -2,6 +2,7 @@ import type { GitHubCommentResult, PRComment } from '../../shared/github/comment
 import type { LocalGitExecOptions, OwnerRepo } from './gh-utils'
 import { getIssueGitHubApiRepository, resolveGitHubRepoExecution } from './github-api-repository'
 import { acquire, classifyGhError, ghExecFileAsync, release } from './gh-utils'
+import { assertGitHubWriteAllowed } from '../aiborg/git/assert-github-write-allowed'
 
 /**
  * Add a comment to an existing GitHub issue.
@@ -33,6 +34,7 @@ export async function addIssueComment(
   if (!ownerRepo) {
     return { ok: false, error: 'Could not resolve GitHub owner/repo for this repository' }
   }
+  assertGitHubWriteAllowed({ owner: ownerRepo.owner, operation: 'issue.comment', repoPath }) // AI-Borg (H54)
   await acquire()
   try {
     const { stdout } = await ghExecFileAsync(

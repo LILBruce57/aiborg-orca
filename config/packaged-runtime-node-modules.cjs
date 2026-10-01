@@ -18,6 +18,8 @@ const PACKAGED_RUNTIME_PACKAGE_ROOTS = [
   '@anthropic-ai/claude-agent-sdk',
   '@electron-toolkit/utils',
   '@linear/sdk',
+  // AI-Borg (H46): client-profile secrets live only in the OS keychain.
+  '@napi-rs/keyring',
   '@parcel/watcher',
   'electron-updater',
   'i18next',
@@ -50,6 +52,14 @@ const PARCEL_WATCHER_PLATFORM_PREFIX_BY_PLATFORM = {
   linux: 'watcher-linux',
   win32: 'watcher-win32'
 }
+// AI-Borg (H46): napi-rs names its binaries keyring-<platform>-<arch>[-<abi>].
+const NAPI_KEYRING_PLATFORM_PREFIX_BY_PLATFORM = {
+  darwin: 'keyring-darwin',
+  linux: 'keyring-linux',
+  win32: 'keyring-win32'
+}
+// Packages whose native addon is a platform optionalDependency the dependency walk never reaches.
+const NATIVE_OPTIONAL_VARIANT_PACKAGES = ['@parcel/watcher', '@napi-rs/keyring']
 const ELECTRON_ARCHITECTURE_BY_ENUM = {
   0: 'ia32',
   1: 'x64',
@@ -192,12 +202,14 @@ function collectPackagedRuntimePackages(electronPlatformName = process.platform)
   // build's supported architectures; afterPack pruning trims non-target
   // platform/architecture variants. Without this the packaged main bundle's import of
   // '@parcel/watcher' resolves at runtime but throws loading its binary.
-  const parcelWatcherDir = packages.get('@parcel/watcher')
-  if (parcelWatcherDir) {
-    const parcelWatcherPackage = JSON.parse(
-      readFileSync(join(parcelWatcherDir, 'package.json'), 'utf8')
-    )
-    for (const optionalName of Object.keys(parcelWatcherPackage.optionalDependencies ?? {})) {
+  // AI-Borg (H46): @napi-rs/keyring ships its binaries the same way.
+  for (const nativePackageName of NATIVE_OPTIONAL_VARIANT_PACKAGES) {
+    const nativePackageDir = packages.get(nativePackageName)
+    if (!nativePackageDir) {
+      continue
+    }
+    const nativePackage = JSON.parse(readFileSync(join(nativePackageDir, 'package.json'), 'utf8'))
+    for (const optionalName of Object.keys(nativePackage.optionalDependencies ?? {})) {
       try {
         visit(optionalName)
       } catch {
@@ -473,6 +485,30 @@ function prunePackagedParcelWatcher(resourcesDir, electronPlatformName, electron
   }
 }
 
+// AI-Borg (H46): keep only the target's keyring binary; never touch other @napi-rs packages.
+function prunePackagedNapiKeyring(resourcesDir, electronPlatformName, electronArch) {
+  const napiDir = join(resourcesDir, 'node_modules', '@napi-rs')
+  if (!existsSync(napiDir)) {
+    return
+  }
+  const keepPrefix = NAPI_KEYRING_PLATFORM_PREFIX_BY_PLATFORM[electronPlatformName]
+  const targetPrefix = keepPrefix
+    ? `${keepPrefix}-${normalizeElectronArchitecture(electronArch)}`
+    : null
+  for (const entry of readdirSync(napiDir, { withFileTypes: true })) {
+    if (!entry.isDirectory() || !entry.name.startsWith('keyring-')) {
+      continue
+    }
+    if (
+      targetPrefix &&
+      (entry.name === targetPrefix || entry.name.startsWith(`${targetPrefix}-`))
+    ) {
+      continue
+    }
+    rmSync(join(napiDir, entry.name), { recursive: true, force: true })
+  }
+}
+
 // Why type declarations: they are compile-time only; the packaged app never resolves them.
 // Why source maps: they embed the original sources (megabytes for @linear/sdk alone) and
 // nothing in the packaged app turns on Node's source-map support, so they are never read.
@@ -563,6 +599,22 @@ function assertPackagedNativeVariantsInstalled(electronPlatformName, electronArc
     }
   }
 
+  // AI-Borg (H46): without its binary the keychain is unavailable and profiles cannot activate.
+  const keyringPrefix = `keyring-${electronPlatformName}-${architecture}`
+  const napiDir = join(nodeModulesDir, '@napi-rs')
+  if (isInstalled('@napi-rs/keyring')) {
+    const expectedKeyringVariants = Object.keys(
+      JSON.parse(readFileSync(join(napiDir, 'keyring', 'package.json'), 'utf8'))
+        .optionalDependencies ?? {}
+    ).filter((name) => name.startsWith(`@napi-rs/${keyringPrefix}`))
+    const hasKeyringVariant = readdirSync(napiDir).some(
+      (name) => name.startsWith(keyringPrefix) && isInstalled(`@napi-rs/${name}`)
+    )
+    if (expectedKeyringVariants.length > 0 && !hasKeyringVariant) {
+      missing.push(...expectedKeyringVariants)
+    }
+  }
+
   // Why one package: @vscode/windows-process-tree is the only os: win32 npm addon;
   // @orca/windows-registry is a workspace link present on every host, so its presence proves nothing.
   const missingWindowsAddons = []
@@ -595,6 +647,7 @@ function prunePackagedRuntimeNodeModules(resourcesDir, electronPlatformName, ele
   const architecture = normalizeElectronArchitecture(electronArch)
   prunePackagedNodePty(resourcesDir, electronPlatformName, architecture)
   prunePackagedParcelWatcher(resourcesDir, electronPlatformName, architecture)
+  prunePackagedNapiKeyring(resourcesDir, electronPlatformName, architecture) // AI-Borg (H46)
   // Why before the filename walk: zod/src is deleted wholesale, so walking it first is wasted work.
   prunePackagedZodSources(resourcesDir)
   prunePackagedRuntimeTypeAndSourceMapArtifacts(resourcesDir)

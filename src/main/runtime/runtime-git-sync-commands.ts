@@ -15,6 +15,7 @@ import {
   type RuntimeGitCommandHost,
   type RuntimeGitTarget
 } from './runtime-git-command-target'
+import { assertClientProfileSshPush } from '../aiborg/binding/client-profile-push-guards'
 
 export class RuntimeGitSyncCommands {
   constructor(private readonly host: RuntimeGitCommandHost) {}
@@ -207,6 +208,8 @@ export class RuntimeGitSyncCommands {
         ? await materializeWorktreePushTargetRemoteSsh(provider, target.worktree.path, pushTarget)
         : undefined
       this.persistMaterializedPushTargetIfCreated(target, materializedPushTarget)
+      // AI-Borg (H52)
+      await assertClientProfileSshPush(provider, target.worktree.path, materializedPushTarget)
       await provider.pushBranch(target.worktree.path, publish === true, materializedPushTarget, {
         forceWithLease: forceWithLease === true
       })

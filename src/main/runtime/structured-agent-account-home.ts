@@ -1,6 +1,7 @@
 import { homedir } from 'node:os'
 import { join } from 'node:path'
 import { getSystemCodexHomePath } from '../codex/codex-home-paths'
+import { clientProfileCodexHomeFromLaunchEnv } from '../aiborg/agents/profile-agent-env'
 
 // The one resolver for "which account home would a structured launch pin right
 // now". The create path fills `record.accountHome` with it, and the model
@@ -45,6 +46,11 @@ export type StructuredCodexAccountHomeDeps = {
 export async function resolveStructuredCodexAccountHomePath(
   deps: StructuredCodexAccountHomeDeps
 ): Promise<string> {
+  // AI-Borg (H32): a client profile home wins before the `~/.codex` runtime copy is touched.
+  const clientProfileHome = clientProfileCodexHomeFromLaunchEnv(deps.launchEnv)
+  if (clientProfileHome) {
+    return clientProfileHome
+  }
   // A create has no process yet, so the current selection is what it must follow.
   const resolvedHome = await deps.resolveLaunchHome?.({ launchEnv: deps.launchEnv })
   const configuredHome = deps.launchEnv.CODEX_HOME

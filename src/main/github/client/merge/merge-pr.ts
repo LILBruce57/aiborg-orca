@@ -8,6 +8,7 @@ import { detectRepositoryMergeMetadata } from './../detect/repository-merge-meta
 import type { PullRequestLookupData } from './../lookup/pull-request-lookup-data'
 import { getRestPRByNumber, getPRByNumber } from './../lookup/pr-number-lookup'
 import { STACK_METADATA_UNAVAILABLE_ERROR } from './../lookup/pr-stack-summary-cache'
+import { assertGitHubWriteAllowed } from '../../../aiborg/git/assert-github-write-allowed'
 /**
  * Merge a PR by number using gh CLI.
  * method: 'merge' | 'squash' | 'rebase' (default: 'squash')
@@ -29,6 +30,7 @@ export async function mergePR(
   if (!ownerRepo) {
     return { ok: false, error: 'Could not resolve GitHub owner/repo for this repository' }
   }
+  assertGitHubWriteAllowed({ owner: ownerRepo.owner, operation: 'pr.merge', repoPath }) // AI-Borg (H54)
   await acquire()
   let concurrencySlotHeld = true
   try {

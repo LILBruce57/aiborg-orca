@@ -11,6 +11,7 @@ import {
 } from '../../gh-utils'
 import { resolveGitHubRepoExecution, type GitHubApiRepository } from '../../github-api-repository'
 import { mapReviewCommentResponse } from './../map/review-comment-response'
+import { assertGitHubWriteAllowed } from '../../../aiborg/git/assert-github-write-allowed'
 export async function addPRReviewComment(
   args: GitHubPRReviewCommentInput & {
     connectionId?: string | null
@@ -26,6 +27,12 @@ export async function addPRReviewComment(
   if (!ownerRepo) {
     return { ok: false, error: 'Could not resolve GitHub owner/repo for this repository' }
   }
+  // AI-Borg (H54)
+  assertGitHubWriteAllowed({
+    owner: ownerRepo.owner,
+    operation: 'pr.review-comment',
+    repoPath: args.repoPath
+  })
   await acquire()
   try {
     const fields = [
@@ -91,6 +98,7 @@ export async function addPRReviewCommentReply(
   if (!ownerRepo) {
     return { ok: false, error: 'Could not resolve GitHub owner/repo for this repository' }
   }
+  assertGitHubWriteAllowed({ owner: ownerRepo.owner, operation: 'pr.review-comment', repoPath }) // AI-Borg (H54)
   await acquire()
   try {
     const { stdout } = await ghExecFileAsync(

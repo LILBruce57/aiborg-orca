@@ -47,6 +47,7 @@ const EXTERNAL = [
   'electron',
   'node-pty',
   '@parcel/watcher',
+  '@napi-rs/keyring', // AI-Borg (H46c)
   'better-sqlite3',
   'keytar',
   'fsevents',

@@ -74,7 +74,7 @@ export class DesktopPushService {
 
   /** Returns null when the mobile runtime never came up, so there is nothing to push for. */
   static create(options: DesktopPushServiceOptions): DesktopPushService | null {
-    // AI-Borg (H21): no push.onorca.dev relay; covers the desktop and orcad call sites.
+    // AI-Borg (H56): no push.onorca.dev relay; covers the desktop and orcad call sites.
     if (isAiborgPushRelayDisabled()) {
       return null
     }

@@ -1,4 +1,4 @@
-import { existsSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, rmSync, writeFileSync } from 'node:fs'
 import type { AgentHookSource } from '../../shared/agent-hook-relay'
 import type { SFTPWrapper } from 'ssh2'
 import type { AgentHookInstallState, AgentHookInstallStatus } from '../../shared/agent-hook-types'
@@ -50,6 +50,7 @@ import {
   OPENCLAUDE_MANAGED_HOOK_PLAN,
   type ClaudeManagedHookPlan
 } from './claude-managed-hook-events'
+import { dirname } from 'node:path'
 
 type ClaudeHookServiceOptions = {
   agent: AgentHookInstallStatus['agent']
@@ -62,6 +63,8 @@ type ClaudeHookServiceOptions = {
 
 type ClaudeHookInstallOptions = {
   claudeVersion?: string
+  /** AI-Borg (H35): a client profile's CLAUDE_CONFIG_DIR instead of `~/.claude`. */
+  configDir?: string
 }
 
 const DEFAULT_CLAUDE_HOOK_SERVICE_OPTIONS: ClaudeHookServiceOptions = {
@@ -98,7 +101,7 @@ export class ClaudeHookService {
   }
 
   getStatus(options: ClaudeHookInstallOptions = {}): AgentHookInstallStatus {
-    const configPath = getConfigPath(this.options.settings)
+    const configPath = getConfigPath(this.options.settings, options.configDir)
     const scriptPath = getManagedScriptPath(this.options.settings)
     const config = readHooksJson(configPath)
     if (!config) {
@@ -159,7 +162,7 @@ export class ClaudeHookService {
   }
 
   install(options: ClaudeHookInstallOptions = {}): AgentHookInstallStatus {
-    const configPath = getConfigPath(this.options.settings)
+    const configPath = getConfigPath(this.options.settings, options.configDir)
     const scriptPath = getManagedScriptPath(this.options.settings)
     const config = readHooksJson(configPath)
     if (!config) {
@@ -187,9 +190,9 @@ export class ClaudeHookService {
       writeManagedScript(scriptPath, payload)
     }
     if (plan.statusLine === 'install') {
-      nextConfig = this.installManagedStatusLine(nextConfig)
+      nextConfig = this.installManagedStatusLine(nextConfig, options.configDir)
     } else if (plan.statusLine === 'retire') {
-      nextConfig = this.retireManagedStatusLine(nextConfig)
+      nextConfig = this.retireManagedStatusLine(nextConfig, options.configDir)
     }
     writeHooksJson(configPath, nextConfig)
     return this.getStatus(options)
@@ -197,9 +200,9 @@ export class ClaudeHookService {
 
   // Why: the statusline feed is opportunistic (usage display, not agent status); a user who deleted the
   // managed entry has opted out, and the marker distinguishes that deletion from a first install.
-  private installManagedStatusLine(config: HooksConfig): HooksConfig {
+  private installManagedStatusLine(config: HooksConfig, configDir?: string): HooksConfig {
     const scriptFileName = getStatusLineScriptFileName(this.options.settings)
-    const markerPath = getStatusLineInstallMarkerPath(this.options.settings)
+    const markerPath = getStatusLineInstallMarkerPath(this.options.settings, configDir)
     const slot = getStatusLineSlotState(config, scriptFileName)
     if (slot === 'user' || (slot === 'empty' && existsSync(markerPath))) {
       return config
@@ -212,6 +215,8 @@ export class ClaudeHookService {
       scriptFileName
     )
     try {
+      // AI-Borg (H35): a fresh profile config dir may not exist yet.
+      mkdirSync(dirname(markerPath), { recursive: true })
       writeFileSync(markerPath, '')
     } catch {
       // Best-effort: a missing marker only means one future user deletion gets re-installed once.
@@ -221,14 +226,14 @@ export class ClaudeHookService {
 
   // Why: a Claude that predates statusLine discards the whole settings file over Orca's; dropping the
   // marker with it keeps an upgrade from reading the removal as the user's opt-out.
-  private retireManagedStatusLine(config: HooksConfig): HooksConfig {
+  private retireManagedStatusLine(config: HooksConfig, configDir?: string): HooksConfig {
     const { config: next, changed } = removeManagedStatusLine(
       config,
       getStatusLineScriptFileName(this.options.settings)
     )
     if (changed) {
       try {
-        rmSync(getStatusLineInstallMarkerPath(this.options.settings), { force: true })
+        rmSync(getStatusLineInstallMarkerPath(this.options.settings, configDir), { force: true })
       } catch {
         // Best-effort: a stale marker only means one upgrade skips re-adding the statusline.
       }
@@ -294,8 +299,8 @@ export class ClaudeHookService {
     }
   }
 
-  remove(): AgentHookInstallStatus {
-    const configPath = getConfigPath(this.options.settings)
+  remove(options: ClaudeHookInstallOptions = {}): AgentHookInstallStatus {
+    const configPath = getConfigPath(this.options.settings, options.configDir)
     const config = readHooksJson(configPath)
     if (!config) {
       return {
@@ -320,12 +325,14 @@ export class ClaudeHookService {
     if (this.options.agent === 'claude') {
       try {
         // Why: an Orca-level uninstall resets the opt-out memory so a later re-enable installs the statusline again.
-        rmSync(getStatusLineInstallMarkerPath(this.options.settings), { force: true })
+        rmSync(getStatusLineInstallMarkerPath(this.options.settings, options.configDir), {
+          force: true
+        })
       } catch {
         // ignore — marker cleanup is best-effort
       }
     }
-    return this.getStatus()
+    return this.getStatus(options)
   }
 }
 

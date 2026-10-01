@@ -1,4 +1,5 @@
 import type { TuiAgent } from '../tui-agent'
+import type { AiborgKeybindingActionId } from '../aiborg/client-profile-keybinding-ids'
 
 export type KeybindingScope =
   | 'global'
@@ -116,6 +117,7 @@ export type KeybindingActionId =
   | 'terminal.splitDown'
   | 'terminal.switchInputSource'
   | PluginKeybindingActionId
+  | AiborgKeybindingActionId // AI-Borg (H43)
 
 export type KeybindingOverrides = Partial<Record<KeybindingActionId, string[]>>
 

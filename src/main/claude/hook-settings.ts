@@ -36,8 +36,9 @@ export const OPENCLAUDE_HOOK_SETTINGS: ClaudeCompatibleHookSettings = {
   usesWindowsCompatLauncher: false
 }
 
-export function getConfigPath(settings = CLAUDE_HOOK_SETTINGS): string {
-  return join(homedir(), settings.configDirName, 'settings.json')
+export function getConfigPath(settings = CLAUDE_HOOK_SETTINGS, configDir?: string): string {
+  // AI-Borg (H35): a client profile's CLAUDE_CONFIG_DIR carries its own settings.json.
+  return join(configDir ?? join(homedir(), settings.configDirName), 'settings.json')
 }
 
 export function getStatusLineScriptBaseName(settings = CLAUDE_HOOK_SETTINGS): string {
@@ -195,8 +196,13 @@ export function getStatusLineSlotState(
 }
 
 // Why: records that the managed statusline was installed once, so a later empty slot reads as user opt-out.
-export function getStatusLineInstallMarkerPath(settings = CLAUDE_HOOK_SETTINGS): string {
-  return getSharedManagedScriptPath(`${getStatusLineScriptBaseName(settings)}.installed`)
+export function getStatusLineInstallMarkerPath(
+  settings = CLAUDE_HOOK_SETTINGS,
+  configDir?: string
+): string {
+  const fileName = `${getStatusLineScriptBaseName(settings)}.installed`
+  // AI-Borg (H35): per config dir, so a fresh profile dir is not read as the user's opt-out.
+  return configDir ? join(configDir, fileName) : getSharedManagedScriptPath(fileName)
 }
 
 // Why: statusLine is a single settings slot, not a hooks array — never overwrite a

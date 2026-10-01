@@ -320,6 +320,11 @@ vi.mock('../orca-profiles', () => ({
   registerOrcaProfileHandlers: registerOrcaProfileHandlersMock
 }))
 
+// AI-Borg (H37): the client-profile registrar has its own suite.
+vi.mock('../../aiborg/ipc/client-profile-ipc', () => ({
+  registerAiborgClientProfileHandlers: vi.fn()
+}))
+
 vi.mock('../codex-accounts', () => ({
   registerCodexAccountHandlers: registerCodexAccountHandlersMock
 }))

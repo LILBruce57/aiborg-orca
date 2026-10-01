@@ -36,6 +36,7 @@ import {
   ZSH_USER_ZSHENV_SOURCE_BLOCK,
   ZSH_ZDOTDIR_HANDBACK_BLOCK
 } from './shell-templates'
+import { getClientProfileZshRestoreSnippet } from './aiborg/env/client-profile-shell-restore'
 
 /** Runtime values the hook re-exports after the user's own startup files ran. */
 export type ZshWrapperRestoreSpec = {
@@ -125,7 +126,8 @@ function getOverlayRestoreBlocks(spec: ZshStartupHookSpec): (string | null)[] {
     MIMOCODE_HOME_RESTORE,
     spec.restores.remoteCliBinDir ? REMOTE_CLI_BIN_DIR_RESTORE : null,
     getPosixOmpShellWrapper(),
-    spec.restores.codexHome ? CODEX_HOME_RESTORE : null
+    spec.restores.codexHome ? CODEX_HOME_RESTORE : null,
+    getClientProfileZshRestoreSnippet() // AI-Borg (H36)
   ]
 }
 

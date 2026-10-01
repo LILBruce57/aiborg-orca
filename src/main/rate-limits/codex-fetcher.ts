@@ -35,6 +35,10 @@ import {
   resolveHiddenRateLimitPtyCwd
 } from './hidden-rate-limit-pty-cwd'
 import { quoteHiddenRateLimitShellValue } from './hidden-rate-limit-shell'
+import {
+  withClientProfileCodexHomeEnv,
+  withClientProfileCodexUsageHome
+} from '../aiborg/agents/client-profile-usage'
 
 const RPC_TIMEOUT_MS = 10_000
 const WSL_RPC_TIMEOUT_MS = 25_000
@@ -105,10 +109,14 @@ async function fetchViaRpc(options?: CodexRateLimitFetchOptions): Promise<Provid
     args: wslCodex ? wslCodex.args : codexArgs,
     stdio: ['pipe', 'pipe', 'pipe'],
     cwd: resolveHiddenRateLimitPtyCwd(),
-    env: withCliRuntimeOnPath(codexCommand, {
-      ...(wslCodex ? processEnvWithoutCodexHome() : process.env),
-      ...(options?.codexHomePath && !wslCodex ? { CODEX_HOME: options.codexHomePath } : {})
-    })
+    // AI-Borg (H60c): a profile home gets the profile's env, not main's personal keys.
+    env: withCliRuntimeOnPath(
+      codexCommand,
+      withClientProfileCodexHomeEnv(wslCodex ? null : options?.codexHomePath, {
+        ...(wslCodex ? processEnvWithoutCodexHome() : process.env),
+        ...(options?.codexHomePath && !wslCodex ? { CODEX_HOME: options.codexHomePath } : {})
+      })
+    )
   })
   return readCodexRateLimitsViaRpc({
     child: child as CodexRpcRateLimitChild,
@@ -163,8 +171,9 @@ async function fetchBackendUsage(
 }
 
 export async function fetchCodexRateLimits(
-  options?: FetchCodexRateLimitsOptions
+  requestedOptions?: FetchCodexRateLimitsOptions
 ): Promise<ProviderRateLimits> {
+  const options = withClientProfileCodexUsageHome(requestedOptions) // AI-Borg (H60)
   if (options?.signal?.aborted) {
     return abortedCodexRateLimitResult()
   }

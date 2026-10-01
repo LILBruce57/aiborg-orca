@@ -30,6 +30,7 @@ import { ProviderSegment, UsageOverflowChip, getUsageTone } from './StatusBarPro
 import { useStatusBarController } from './use-status-bar-controller'
 import { StatusBarVisibilityMenu } from './StatusBarVisibilityMenu'
 import { isPairedWebClientWindow } from '@/lib/desktop-window-chrome'
+import { useClientProfileModeActive } from '../../aiborg/client-profile-store'
 
 const PetStatusSegment = lazyWithRetry(() =>
   import('./PetStatusSegment').then((module) => ({ default: module.PetStatusSegment }))
@@ -54,6 +55,7 @@ export function StatusBarSurface({
   floatingTerminalOpen
 }: StatusBarProps): React.JSX.Element | null {
   const controller = useStatusBarController(floatingTerminalOpen)
+  const clientProfileMode = useClientProfileModeActive() // AI-Borg (H42)
   if (!controller) {
     return null
   }
@@ -196,7 +198,7 @@ export function StatusBarSurface({
                       // Every provider drills into its detail panel (parity with the
                       // per-provider dropdowns on main); Claude/Codex additionally get
                       // the account switcher + runtime toggle + Codex reset credits.
-                      if (p.provider === 'claude') {
+                      if (p.provider === 'claude' && !clientProfileMode) {
                         return (
                           <ClaudeSwitcherMenu
                             claude={p}
@@ -207,7 +209,7 @@ export function StatusBarSurface({
                           />
                         )
                       }
-                      if (p.provider === 'codex') {
+                      if (p.provider === 'codex' && !clientProfileMode) {
                         return (
                           <CodexSwitcherMenu
                             codex={p}

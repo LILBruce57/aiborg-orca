@@ -30,6 +30,11 @@ import { resolveClaudeCommand } from '../codex-cli/command'
 import { resolveSessionFilePath } from '../native-chat/session-file-resolver'
 import { withoutInheritedClaudeConfigDir } from './claude-config-dir-pin'
 import type { AgentSessionRecordStore } from '../runtime/agent-session-record-store'
+import type { AgentSessionRecord } from '../../shared/agent-session-record'
+import {
+  assertClaudeClientProfileHome,
+  withStructuredClientProfileEnv
+} from '../aiborg/agents/profile-agent-env'
 
 export const CLAUDE_DEFAULT_SETTING_SOURCES = ['user', 'project', 'local'] as const
 export const CLAUDE_SESSION_STATE_EVENTS_ENV = 'CLAUDE_CODE_EMIT_SESSION_STATE_EVENTS'
@@ -133,6 +138,8 @@ export type ClaudeStructuredLaunchResolverDeps = {
     providerSessionId: string
     claudeConfigDir: string
   }) => Promise<boolean>
+  /** AI-Borg (H33): refuses a record homed outside its workspace's client profile. */
+  assertAccountHomeAllowed?: (record: AgentSessionRecord) => void
 }
 
 async function claudeTranscriptExists(input: {
@@ -249,6 +256,8 @@ export function createClaudeStructuredLaunchResolver(
     if (record.accountHome.variable !== 'CLAUDE_CONFIG_DIR') {
       throw new Error(`claude sessions pin CLAUDE_CONFIG_DIR, not ${record.accountHome.variable}`)
     }
+    const assertAccountHome = deps.assertAccountHomeAllowed ?? assertClaudeClientProfileHome
+    assertAccountHome(record) // AI-Borg (H33)
     // Every acquisition, not just the first: the account state can change under a live session, and
     // a reacquire after an unexpected exit would otherwise spawn under whatever it has become.
     // Codex has no gate here — it resolves its account on a different path.
@@ -289,11 +298,15 @@ export function createClaudeStructuredLaunchResolver(
     )
     const { command, env } = await resolveClaudeStructuredInvocation(deps, (base) =>
       // Every structured session speaks orchestration as itself: its injected id and the Orca CLI.
-      structuredSessionChildIdentityEnv(record.sessionId, {
-        ...base,
-        // The turn translator relies on Claude's authoritative idle frame when no result arrives.
-        [CLAUDE_SESSION_STATE_EVENTS_ENV]: '1'
-      })
+      structuredSessionChildIdentityEnv(
+        record.sessionId,
+        // AI-Borg (H23): the record's workspace profile env, managed keys deleted.
+        withStructuredClientProfileEnv(record, 'claude', {
+          ...base,
+          // The turn translator relies on Claude's authoritative idle frame when no result arrives.
+          [CLAUDE_SESSION_STATE_EVENTS_ENV]: '1'
+        })
+      )
     )
     return {
       pathToClaudeCodeExecutable: command,
