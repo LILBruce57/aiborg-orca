@@ -21,6 +21,7 @@ import { recordUpdaterLifecycle } from '../updater-lifecycle-diagnostics'
 import { AUTO_UPDATE_CHECK_INTERVAL_MS } from './updater-state'
 import { UpdaterDownloadInstall } from './updater-download-install'
 import type { PreQuitCleanupFailureMode, UpdateInstallMode } from './updater-state'
+import { isAiborgAutoUpdateDisabled } from '../aiborg/upstream-service-policy'
 
 export type UpdaterSetupOptions = {
   getLastUpdateCheckAt?: () => number | null
@@ -135,6 +136,10 @@ export class UpdaterSetup extends UpdaterDownloadInstall {
       this.sendErrorStatus(`The server update did not complete: ${serveHandoffFailure}`, true)
     }
 
+    // AI-Borg (H8): no feed, no handlers, no onorca.dev nudge.
+    if (isAiborgAutoUpdateDisabled()) {
+      return
+    }
     if (!app.isPackaged && !is.dev) {
       return
     }

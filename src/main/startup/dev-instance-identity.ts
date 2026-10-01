@@ -1,9 +1,12 @@
 import { createHash } from 'node:crypto'
 import path from 'node:path'
 import type { AppIdentity } from '../../shared/app-identity'
+import { AIBORG_BRAND } from '../../shared/aiborg/brand'
+import { brandedOrUpstream } from '../aiborg/upstream-service-policy'
 
-const BASE_APP_NAME = 'Orca'
-const BASE_APP_USER_MODEL_ID = 'com.stablyai.orca'
+// AI-Borg (H2): window title, app menu name and Windows AppUserModelID.
+const BASE_APP_NAME = brandedOrUpstream(AIBORG_BRAND.productName, 'Orca')
+const BASE_APP_USER_MODEL_ID = brandedOrUpstream(AIBORG_BRAND.appId, 'com.stablyai.orca')
 const MAX_LABEL_LENGTH = 80
 
 export type DevInstanceIdentity = AppIdentity & {

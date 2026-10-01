@@ -24,9 +24,11 @@ import {
 } from './windows-install-dir-acl-recovery'
 import { mainProcessState as state, gpuFallbackEnvironment } from './main-process-state'
 import { createGpuAccelerationAboutPanelOptions } from '../menu/gpu-acceleration-about-panel'
+import { setAiborgAboutPanelOptions } from '../aiborg/about/aiborg-about-panel'
 
 export function updateGpuAccelerationAboutPanel(): void {
-  app.setAboutPanelOptions(
+  // AI-Borg (H7): same options plus the "based on Orca" attribution and upstream link.
+  setAiborgAboutPanelOptions(
     createGpuAccelerationAboutPanelOptions({
       appName: app.name,
       appVersion: app.getVersion(),

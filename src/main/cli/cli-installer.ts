@@ -13,6 +13,7 @@ import {
 } from './appimage-extracted-root'
 import { isAppImageStableLauncherReady } from './appimage-stable-launcher'
 import { CliPathRegistration } from './cli-path-registration'
+import { assertAiborgGlobalCliRegistrationAllowed } from '../aiborg/upstream-service-policy'
 
 export class CliInstaller extends CliPathRegistration {
   isAppImageRegistrationOwnedBySibling(status: CliInstallStatus): boolean {
@@ -106,6 +107,8 @@ export class CliInstaller extends CliPathRegistration {
   }
 
   private async installUnlocked(): Promise<CliInstallStatus> {
+    // AI-Borg (H14): never claim the global `orca` command of a side-by-side stock Orca.
+    assertAiborgGlobalCliRegistrationAllowed()
     const initialStatus = await this.getStatus()
     if (
       !initialStatus.supported ||
@@ -163,6 +166,8 @@ export class CliInstaller extends CliPathRegistration {
   }
 
   private async removeUnlocked(): Promise<CliInstallStatus> {
+    // AI-Borg (H14b): a stock Orca's global `orca` reads as "stale" here; never delete it.
+    assertAiborgGlobalCliRegistrationAllowed()
     const status = await this.getStatus()
     if (!status.supported || !status.commandPath || !status.launcherPath || !status.installMethod) {
       await this.removeLinuxAppImagePayloads()

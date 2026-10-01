@@ -14,6 +14,7 @@ import { compareVersions } from '../updater-fallback'
 import { listReleaseBuilds, resolveTargetBuild } from '../updater-release-builds'
 import { ReleaseBuildListCache, type ReleaseBuildListOptions } from '../updater-release-build-cache'
 import { UpdaterMenuChecks } from './updater-menu-checks'
+import { isAiborgAutoUpdateDisabled } from '../aiborg/upstream-service-policy'
 
 /** Handles local-build selection and exact release-channel/tag jumps. */
 export abstract class UpdaterBuildSelection extends UpdaterMenuChecks {
@@ -76,6 +77,10 @@ export abstract class UpdaterBuildSelection extends UpdaterMenuChecks {
     channel: ReleaseChannel,
     options?: ReleaseBuildListOptions
   ): Promise<ReleaseBuild[]> {
+    // AI-Borg (H8b): the build picker never lists upstream's GitHub releases.
+    if (isAiborgAutoUpdateDisabled()) {
+      return []
+    }
     return this.releaseBuildCache.list(channel, options)
   }
 

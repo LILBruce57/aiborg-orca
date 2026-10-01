@@ -101,6 +101,7 @@ import { initializeBrowserIdentityModeStore } from '../browser/browser-identity-
 import { acquireProfileStateRuntimeAdmission } from '../persistence/profile-state/profile-state-access'
 import { getActiveProfileStateLocation } from '../persistence/profile-state/profile-state-active-location'
 import { handleMainProcessPreflightFailure } from './main-process-preflight-failure'
+import { aiborgPreflight } from '../aiborg/startup/aiborg-preflight'
 
 export type MainProcessPreflightOptions = {
   focusExistingWindow: () => void
@@ -119,6 +120,8 @@ export function runMainProcessPreflight(options: MainProcessPreflightOptions): b
 }
 
 function initializeMainProcessPreflight(options: MainProcessPreflightOptions): boolean {
+  // AI-Borg (H3/H4): own userData + telemetry kill switch before anything resolves a path.
+  aiborgPreflight(is.dev)
   if (runProfileStateRecoveryPreflight()) {
     return false
   }
